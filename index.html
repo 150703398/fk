@@ -28,14 +28,13 @@ body {
   gap:8px;
   justify-content:flex-start;
 }
-#leftControls button, #leftControls select {
-  padding:8px 12px; /* 调小按钮 */
+#leftControls select, #leftControls button, #rightControls button {
+  padding:6px 10px;
   font-size:14px;
   cursor:pointer;
-  background:#ffb347; color:#000; border:none; border-radius:6px;
+  background:#ffb347; color:#000; border:none; border-radius:8px;
   box-shadow:2px 2px 5px rgba(0,0,0,0.5);
 }
-#rightControls button {padding:10px 16px; font-size:16px;}
 #gameCanvas {
   background:#fff;
   border:3px solid #ffb347;
@@ -49,11 +48,15 @@ body {
 }
 #scoreBoard ol {padding-left:20px;}
 #touchControls {
-  display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px;
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+  padding:5px; background:rgba(255,255,255,0.8);
+  width:100%; box-sizing:border-box;
+  position:fixed; bottom:0; left:0;
 }
-#touchControls button {width:60px; height:60px; font-size:20px;}
-@media (max-width:600px){
-  #touchControls {display:flex;} /* 移动端总显示 */
+#touchControls button {
+  width:50px; height:50px; font-size:18px;
+  background:#ffb347; border:none; border-radius:8px;
+  box-shadow:1px 1px 3px rgba(0,0,0,0.5);
 }
 </style>
 </head>
@@ -82,8 +85,7 @@ body {
   </div>
 </div>
 
-<!-- 移动端底部触控按键 -->
-<div id="touchControls" style="display:none;">
+<div id="touchControls">
   <button id="leftBtn">⬅️</button>
   <button id="rotateBtn">↻</button>
   <button id="rightBtn">➡️</button>
@@ -101,7 +103,7 @@ const ctx=canvas.getContext('2d');
 let COLS=10, ROWS=20;
 let BLOCK;
 function resizeCanvas(){
-  const w=canvas.parentElement.clientWidth - 160; // 左右控件宽度
+  const w=canvas.parentElement.clientWidth - 160; // 两侧控件宽度
   const h=canvas.parentElement.clientHeight;
   BLOCK=Math.floor(Math.min(w/COLS,h/ROWS));
   canvas.width=COLS*BLOCK;
@@ -137,8 +139,6 @@ function initGame(){
   if(soundOn) bgm.play();
   resizeCanvas();
   updateLeaderboard();
-  // 移动端显示底部触控按键
-  if(window.innerWidth<=600) document.getElementById('touchControls').style.display='flex';
 }
 
 function randomPiece(){return {shape:shapes[Math.floor(Math.random()*shapes.length)],color:colors[Math.floor(Math.random()*colors.length)],x:Math.floor(COLS/2)-1,y:0};}
