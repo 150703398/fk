@@ -5,21 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>卡通风格俄罗斯方块</title>
 <style>
-body {margin:0;padding:0;font-family:Arial,sans-serif;background:#a0eaff;display:flex;flex-direction:column;height:100vh;}
-#gameArea {display:flex;flex:1;padding:5px;gap:10px;box-sizing:border-box;}
-#leftControlsWrapper {display:flex;flex-direction:column;width:120px;}
-#leaderboardWrapper {flex:1;overflow-y:auto;}
-#leaderboardWrapper ol {padding-left:15px;margin:5px 0;font-size:14px;}
-#leftControls {display:flex;flex-direction:column;gap:5px;justify-content:flex-start;}
-#leftControls select,#leftControls button {padding:4px 8px;font-size:12px;cursor:pointer;background:#ffb347;color:#000;border:none;border-radius:5px;box-shadow:1px 1px 3px rgba(0,0,0,0.4);}
-#gameCanvas {background:#fff;border:3px solid #ffb347;border-radius:10px;flex-grow:1;touch-action:none;}
-#touchControls {display:flex;justify-content:space-around;padding:5px;background:rgba(255,255,255,0.2);}
-#touchControls button {flex:1;margin:2px;font-size:18px;height:50px;border-radius:8px;border:none;background:#ffb347;color:#000;box-shadow:1px 1px 3px rgba(0,0,0,0.4);cursor:pointer;}
+html, body {margin:0; padding:0; height:100%; width:100%; font-family:Arial,sans-serif; background:#a0eaff;}
+body {display:flex; flex-direction:column;}
+#gameContainer {flex:1; display:flex; flex-direction:row; overflow:hidden;}
+#leftControlsWrapper {display:flex; flex-direction:column; width:140px; box-sizing:border-box; padding:5px;}
+#leaderboardWrapper {flex:1; overflow-y:auto; margin-bottom:5px;}
+#leaderboardWrapper ol {padding-left:15px; margin:5px 0; font-size:14px;}
+#leftControls {display:flex; flex-direction:column; gap:5px; justify-content:flex-start;}
+#leftControls select,#leftControls button {padding:4px 8px; font-size:12px; cursor:pointer; background:#ffb347; color:#000; border:none; border-radius:5px; box-shadow:1px 1px 3px rgba(0,0,0,0.4);}
+#canvasWrapper {flex:1; display:flex; justify-content:center; align-items:center; position:relative;}
+#gameCanvas {background:#fff; border:3px solid #ffb347; border-radius:10px; touch-action:none; display:block;}
+#touchControls {display:flex; justify-content:space-around; padding:5px; background:rgba(255,255,255,0.2);}
+#touchControls button {flex:1; margin:2px; font-size:18px; height:50px; border-radius:8px; border:none; background:#ffb347; color:#000; box-shadow:1px 1px 3px rgba(0,0,0,0.4); cursor:pointer;}
 </style>
 </head>
 <body>
 
-<div id="gameArea">
+<div id="gameContainer">
   <div id="leftControlsWrapper">
     <div id="leaderboardWrapper">
       <strong>排行榜</strong>
@@ -35,7 +37,9 @@ body {margin:0;padding:0;font-family:Arial,sans-serif;background:#a0eaff;display
       <button id="pauseBtn">暂停</button>
     </div>
   </div>
-  <canvas id="gameCanvas"></canvas>
+  <div id="canvasWrapper">
+    <canvas id="gameCanvas"></canvas>
+  </div>
 </div>
 
 <div id="touchControls">
@@ -46,23 +50,25 @@ body {margin:0;padding:0;font-family:Arial,sans-serif;background:#a0eaff;display
 </div>
 
 <script>
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-let COLS=10, ROWS=20, BLOCK;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let COLS = 10, ROWS = 20, BLOCK;
 let board=[], current=null, nextPiece=null, dropInterval=null, speed=parseInt(document.getElementById('difficulty').value), paused=false, score=0;
 
 const shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
 const colors=['#ff0000','#ff7700','#ffff00','#77ff00','#00ff77','#00ffff','#7700ff'];
 
+// Canvas 自适应 PC/手机
 function resizeCanvas(){
-  const areaHeight = document.getElementById('gameArea').clientHeight;
-  const areaWidth = document.getElementById('gameArea').clientWidth - 130;
-  BLOCK=Math.floor(Math.min(areaWidth/COLS, areaHeight/ROWS));
-  canvas.width=COLS*BLOCK;
-  canvas.height=ROWS*BLOCK;
+  const wrapper = document.getElementById('canvasWrapper');
+  const w = wrapper.clientWidth;
+  const h = wrapper.clientHeight;
+  BLOCK = Math.floor(Math.min(w/COLS, h/ROWS));
+  canvas.width = COLS * BLOCK;
+  canvas.height = ROWS * BLOCK;
   draw();
 }
-window.addEventListener('resize',resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
 
 function randomPiece(){return {shape:shapes[Math.floor(Math.random()*shapes.length)],color:colors[Math.floor(Math.random()*colors.length)],x:Math.floor(COLS/2)-1,y:0};}
 
@@ -74,7 +80,7 @@ function draw(){
   if(current) current.shape.forEach((r,i)=>r.forEach((c,j)=>c&&drawBlock(current.x+j,current.y+i,current.color)));
 }
 
-function drawBlock(x,y,c){ctx.fillStyle=c;ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);ctx.strokeStyle="#fff";ctx.strokeRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);}
+function drawBlock(x,y,c){ctx.fillStyle=c; ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK); ctx.strokeStyle="#fff"; ctx.strokeRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);}
 
 function collide(dx=0,dy=0,shape=null){shape=shape||current.shape; return shape.some((r,i)=>r.some((c,j)=>c&&(current.x+j+dx<0||current.x+j+dx>=COLS||current.y+i+dy>=ROWS||(current.y+i+dy>=0&&board[current.y+i+dy][current.x+j]))));}
 
@@ -84,9 +90,9 @@ function drop(){if(!paused){if(!collide(0,1)) current.y++; else{merge();clearLin
 
 function merge(){current.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c&&current.y+i>=0) board[current.y+i][current.x+j]=current.color;}));}
 
-function clearLines(){for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++;score+=10;}}}
+function clearLines(){for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++; score+=10;}}}
 
-function gameOver(){clearInterval(dropInterval);alert("游戏结束! 分数:"+score);saveScore(score);updateLeaderboard();}
+function gameOver(){clearInterval(dropInterval);alert("游戏结束! 分数:"+score); saveScore(score); updateLeaderboard();}
 
 function saveScore(s){let arr=JSON.parse(localStorage.getItem('tetrisScores')||'[]'); arr.push(s); arr.sort((a,b)=>b-a); if(arr.length>5) arr.length=5; localStorage.setItem('tetrisScores',JSON.stringify(arr));}
 
@@ -99,7 +105,7 @@ function startGame(){
   score=0;
   paused=false;
   if(dropInterval) clearInterval(dropInterval);
-  dropInterval=setInterval(drop,speed);
+  dropInterval=setInterval(drop, speed);
   draw();
   updateLeaderboard();
 }
@@ -109,7 +115,13 @@ document.getElementById('pauseBtn').onclick=()=>{paused=!paused;};
 document.getElementById('difficulty').onchange=e=>{speed=parseInt(e.target.value); if(dropInterval){clearInterval(dropInterval); dropInterval=setInterval(drop,speed);}};
 
 // 键盘控制
-document.addEventListener('keydown',e=>{if(!current) return; if(e.key==='ArrowLeft') movePiece(-1); if(e.key==='ArrowRight') movePiece(1); if(e.key==='ArrowDown') drop(); if(e.key==='ArrowUp') rotatePiece();});
+document.addEventListener('keydown', e => {
+  if(!current) return;
+  if(e.key==='ArrowLeft') movePiece(-1);
+  if(e.key==='ArrowRight') movePiece(1);
+  if(e.key==='ArrowDown') drop();
+  if(e.key==='ArrowUp') rotatePiece();
+});
 
 // 触屏按钮
 document.getElementById('leftBtn').onclick=()=>movePiece(-1);
@@ -118,7 +130,7 @@ document.getElementById('rotateBtn').onclick=()=>rotatePiece();
 document.getElementById('rightBtn').onclick=()=>movePiece(1);
 
 // 手势控制
-let touchStartX=0,touchStartY=0;
+let touchStartX=0, touchStartY=0;
 canvas.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;});
 canvas.addEventListener('touchend',e=>{
   let dx=e.changedTouches[0].clientX-touchStartX;
