@@ -3,51 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>卡通风格全屏俄罗斯方块</title>
+<title>卡通风格网页俄罗斯方块</title>
 <style>
-html,body {
-  margin:0; padding:0; height:100%; width:100%; overflow:hidden;
-  font-family:Arial, sans-serif; background:#a0eaff;
+body {
+  margin:0; padding:0;
+  font-family: Arial, sans-serif;
+  background:#a0eaff;
+  color:#000;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  height:100vh;
+  overflow:hidden;
 }
-canvas { display:block; background:#fff; }
-.controlPanel {
-  position:absolute; background:rgba(255,255,255,0.7); border-radius:10px; padding:8px; z-index:10;
+#gameWrapper {
+  display:flex;
+  width:95%;
+  max-width:700px;
+  flex-grow:1;
 }
-#leftTop { top:10px; left:10px; display:flex; flex-direction:column; gap:5px; }
-#leftBottom { bottom:10px; left:10px; display:flex; flex-direction:column; gap:5px; }
-#rightTop { top:10px; right:10px; display:flex; flex-direction:column; gap:5px; text-align:center; }
-button, select {
-  padding:8px 12px; font-size:16px; border:none; border-radius:6px; cursor:pointer;
-  background:#ffb347; color:#000; box-shadow:2px 2px 5px rgba(0,0,0,0.5);
+#leftControls, #rightControls {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  justify-content:flex-start;
 }
+#leftControls button, #leftControls select, #rightControls button {
+  padding:10px 16px;
+  font-size:16px;
+  cursor:pointer;
+  background:#ffb347; color:#000; border:none; border-radius:8px;
+  box-shadow:2px 2px 5px rgba(0,0,0,0.5);
+}
+#gameCanvas {
+  background:#fff;
+  border:3px solid #ffb347;
+  border-radius:10px;
+  margin:0 10px;
+  touch-action:none;
+  flex-grow:1;
+}
+#scoreBoard {
+  margin-bottom:10px;
+}
+#scoreBoard ol {padding-left:20px;}
 #touchControls {
-  position:absolute; bottom:10px; right:10px; display:flex; gap:10px; z-index:10;
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px;
 }
-#touchControls button {width:50px; height:50px; font-size:18px;}
+#touchControls button {width:60px; height:60px; font-size:20px;}
 </style>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
+<div id="gameWrapper">
+  <div id="leftControls">
+    <select id="difficulty">
+      <option value="600">简单</option>
+      <option value="350" selected>普通</option>
+      <option value="180">困难</option>
+    </select>
+    <button id="toggleSoundBtn">BGM/音效开关</button>
+    <button id="startBtn">开始</button>
+    <button id="pauseBtn">暂停</button>
+  </div>
 
-<div id="leftTop" class="controlPanel">
-  <select id="difficulty">
-    <option value="600">简单</option>
-    <option value="350" selected>普通</option>
-    <option value="180">困难</option>
-  </select>
-  <button id="toggleSoundBtn">BGM/音效开关</button>
-</div>
+  <canvas id="gameCanvas"></canvas>
 
-<div id="leftBottom" class="controlPanel">
-  <button id="startBtn">开始</button>
-  <button id="pauseBtn">暂停</button>
-</div>
-
-<div id="rightTop" class="controlPanel">
-  分数: <span id="score">0</span><br>
-  <strong>本地排行榜</strong>
-  <ol id="leaderboard" style="padding-left:20px; margin:0;"></ol>
+  <div id="rightControls">
+    <div id="scoreBoard">
+      分数: <span id="score">0</span><br>
+      <strong>本地排行榜</strong>
+      <ol id="leaderboard"></ol>
+    </div>
+  </div>
 </div>
 
 <div id="touchControls">
@@ -62,17 +90,20 @@ button, select {
 <audio id="lineSfx" src="https://freepd.com/sound/effects/tetris_clear.wav"></audio>
 
 <script>
-// —— Canvas全屏
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let COLS = 10, ROWS = 20, BLOCK;
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  BLOCK = Math.floor(Math.min(canvas.width / COLS, canvas.height / ROWS));
+// —— Canvas自适应
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+let COLS=10, ROWS=20;
+let BLOCK;
+function resizeCanvas(){
+  const w=canvas.parentElement.clientWidth - 160; // 两侧控件宽度
+  const h=canvas.parentElement.clientHeight;
+  BLOCK=Math.floor(Math.min(w/COLS,h/ROWS));
+  canvas.width=COLS*BLOCK;
+  canvas.height=ROWS*BLOCK;
   draw();
 }
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize',resizeCanvas);
 
 // —— 音效
 let soundOn=false;
@@ -89,15 +120,17 @@ const shapes=[
 let colors=['#ff0000','#ff7700','#ffff00','#77ff00','#00ff77','#00ffff','#7700ff'];
 let board,current,nextPiece,score,dropInterval,paused=false,speed=parseInt(document.getElementById('difficulty').value);
 
+// —— 初始化游戏
 function initGame(){
   board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
   score=0; document.getElementById('score').innerText=score;
-  current=randomPiece(); nextPiece=randomPiece();
+  current=randomPiece();
+  nextPiece=randomPiece();
   clearInterval(dropInterval);
   dropInterval=setInterval(gameLoop,speed);
   paused=false;
   if(soundOn) bgm.play();
-  draw();
+  resizeCanvas();
   updateLeaderboard();
 }
 
