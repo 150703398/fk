@@ -95,17 +95,17 @@ const ctx=canvas.getContext('2d');
 let COLS=10, ROWS=20, BLOCK;
 
 function resizeCanvas(){
-  const wrapper=document.getElementById('gameWrapper');
   const left=document.getElementById('leftControls').offsetWidth;
   const right=document.getElementById('rightControls').offsetWidth;
-  const w=wrapper.clientWidth - left - right - 20; // 10px margin each侧
-  const h=wrapper.clientHeight;
-  BLOCK=Math.floor(Math.min(w/COLS, h/ROWS));
-  canvas.width=COLS*BLOCK;
-  canvas.height=ROWS*BLOCK;
+  const width = window.innerWidth - left - right - 20; // 左右控件间距
+  const height = window.innerHeight - 20; // 顶底安全间距
+  BLOCK = Math.floor(Math.min(width/COLS, height/ROWS));
+  canvas.width = COLS*BLOCK;
+  canvas.height = ROWS*BLOCK;
   draw();
 }
 window.addEventListener('resize',resizeCanvas);
+window.addEventListener('orientationchange',resizeCanvas);
 
 // —— 音效
 let soundOn=false;
