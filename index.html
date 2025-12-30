@@ -13,8 +13,8 @@ body {margin:0;padding:0;font-family:Arial,sans-serif;background:#a0eaff;display
 #leftControls {display:flex;flex-direction:column;gap:5px;justify-content:flex-start;}
 #leftControls select,#leftControls button {padding:4px 8px;font-size:12px;cursor:pointer;background:#ffb347;color:#000;border:none;border-radius:5px;box-shadow:1px 1px 3px rgba(0,0,0,0.4);}
 #gameCanvas {background:#fff;border:3px solid #ffb347;border-radius:10px;flex-grow:1;touch-action:none;}
-#touchControls {display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:5px 0;background:rgba(255,255,255,0.2);}
-#touchControls button {width:50px;height:50px;font-size:18px;border-radius:8px;border:none;background:#ffb347;color:#000;box-shadow:1px 1px 3px rgba(0,0,0,0.4);cursor:pointer;}
+#touchControls {display:flex;justify-content:space-around;padding:5px;background:rgba(255,255,255,0.2);}
+#touchControls button {flex:1;margin:2px;font-size:18px;height:50px;border-radius:8px;border:none;background:#ffb347;color:#000;box-shadow:1px 1px 3px rgba(0,0,0,0.4);cursor:pointer;}
 </style>
 </head>
 <body>
@@ -40,9 +40,9 @@ body {margin:0;padding:0;font-family:Arial,sans-serif;background:#a0eaff;display
 
 <div id="touchControls">
   <button id="leftBtn">⬅️</button>
+  <button id="downBtn">⬇️</button>
   <button id="rotateBtn">↻</button>
   <button id="rightBtn">➡️</button>
-  <button id="downBtn">⬇️</button>
 </div>
 
 <script>
@@ -113,9 +113,9 @@ document.addEventListener('keydown',e=>{if(!current) return; if(e.key==='ArrowLe
 
 // 触屏按钮
 document.getElementById('leftBtn').onclick=()=>movePiece(-1);
-document.getElementById('rightBtn').onclick=()=>movePiece(1);
 document.getElementById('downBtn').onclick=()=>drop();
 document.getElementById('rotateBtn').onclick=()=>rotatePiece();
+document.getElementById('rightBtn').onclick=()=>movePiece(1);
 
 // 手势控制
 let touchStartX=0,touchStartY=0;
