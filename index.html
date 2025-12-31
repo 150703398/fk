@@ -11,14 +11,19 @@ body{
   margin:0;
   height:100vh;
   background:#cceeff;
-}
-#app{
   display:flex;
-  width:100%;
-  height:100%;
+  flex-direction:column;
 }
 
-/* ===== 左侧 30% ===== */
+/* ===== 主体（不含方向键） ===== */
+#main{
+  flex:1;
+  display:flex;
+  width:100%;
+  overflow:hidden;
+}
+
+/* 左侧 30% */
 #left{
   width:30%;
   background:#fff3cd;
@@ -26,7 +31,7 @@ body{
   flex-direction:column;
 }
 
-/* 上半：排行榜 */
+/* 排行榜 */
 #rankBox{
   height:50%;
   padding:8px;
@@ -34,7 +39,7 @@ body{
 #rankBox h3{margin:4px 0;font-size:14px}
 #rankList{font-size:12px}
 
-/* 下半：预览 + 控制 */
+/* 控制区 */
 #controlBox{
   height:50%;
   padding:8px;
@@ -50,6 +55,7 @@ body{
   text-align:center;
 }
 
+/* 预览 */
 #nextCanvas{
   width:100%;
   aspect-ratio:1/1;
@@ -57,16 +63,9 @@ body{
   border-radius:8px;
 }
 
-/* ===== 右侧 70% ===== */
+/* 右侧 70% */
 #right{
   width:70%;
-  display:flex;
-  flex-direction:column;
-}
-
-/* Canvas 区 */
-#gameWrap{
-  flex:1;
   padding:6px;
 }
 #gameCanvas{
@@ -74,21 +73,22 @@ body{
   height:100%;
   aspect-ratio:10/20;
   background:#222;
-  border-radius:12px;
+  border-radius:14px;
 }
 
-/* 方向键（占满底部） */
+/* ===== 底部方向键（100% 屏宽） ===== */
 #controls{
-  height:80px;
+  height:90px;
+  width:100vw;
   display:flex;
-  width:100%;
+  background:#b3e0ff;
 }
 .ctrl{
   flex:1;
+  margin:6px;
+  border-radius:14px;
   background:#ffb84d;
-  margin:4px;
-  border-radius:12px;
-  font-size:20px;
+  font-size:22px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -110,9 +110,9 @@ button:active{background:#3399ff}
 </head>
 
 <body>
-<div id="app">
 
-  <!-- 左侧 -->
+<div id="main">
+  <!-- 左 -->
   <div id="left">
     <div id="rankBox" class="panel">
       <h3>排行榜</h3>
@@ -136,20 +136,18 @@ button:active{background:#3399ff}
     </div>
   </div>
 
-  <!-- 右侧 -->
+  <!-- 右 -->
   <div id="right">
-    <div id="gameWrap">
-      <canvas id="gameCanvas"></canvas>
-    </div>
-
-    <div id="controls">
-      <div class="ctrl" onclick="move(-1,0)">⬅</div>
-      <div class="ctrl" onclick="move(0,1)">⬇</div>
-      <div class="ctrl" onclick="rotate()">⟳</div>
-      <div class="ctrl" onclick="move(1,0)">➡</div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
   </div>
+</div>
 
+<!-- 底部方向键：全屏宽度 -->
+<div id="controls">
+  <div class="ctrl" onclick="move(-1,0)">⬅</div>
+  <div class="ctrl" onclick="move(0,1)">⬇</div>
+  <div class="ctrl" onclick="rotate()">⟳</div>
+  <div class="ctrl" onclick="move(1,0)">➡</div>
 </div>
 
 <script>
@@ -265,5 +263,6 @@ function drawNext(){
   }));
 }
 </script>
+
 </body>
 </html>
