@@ -60,7 +60,8 @@ const nextCanvas=document.getElementById('nextCanvas'),nextCtx=nextCanvas.getCon
 
 const COLS=10,ROWS=20;
 let BLOCK;
-let board=[],current=null,nextPiece=null,dropInterval=null,speed=parseInt(document.getElementById('difficulty').value),paused=false,score=0;
+let board=[],current=null,nextPiece=null,dropInterval=null,speed=parseInt(document.getElementById('difficulty').value),paused=false;
+let score=0,combo=0,lockDelay=500,lockTimer=null;
 
 const shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
 const colors=['#ff0000','#ff7700','#ffff00','#77ff00','#00ff77','#00ffff','#7700ff'];
@@ -78,19 +79,24 @@ window.addEventListener('resize',resizeCanvas);
 
 function randomPiece(){return {shape:shapes[Math.floor(Math.random()*shapes.length)],color:colors[Math.floor(Math.random()*colors.length)],x:Math.floor(COLS/2)-1,y:0};}
 function initBoard(){board=Array.from({length:ROWS},()=>Array(COLS).fill(0));}
-function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);board.forEach((r,y)=>r.forEach((c,x)=>c&&drawBlock(x,y,c)));if(current) current.shape.forEach((r,i)=>r.forEach((c,j)=>c&&drawBlock(current.x+j,current.y+i,current.color)));drawNext();}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  board.forEach((r,y)=>r.forEach((c,x)=>c&&drawBlock(x,y,c)));
+  if(current) current.shape.forEach((r,i)=>r.forEach((c,j)=>c&&drawBlock(current.x+j,current.y+i,current.color)));
+  drawNext();
+}
 function drawBlock(x,y,c,ctxToUse=ctx,BLOCK_SIZE=BLOCK){ctxToUse.fillStyle=c;ctxToUse.fillRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);ctxToUse.strokeStyle="#000";ctxToUse.strokeRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);}
 function drawNext(){if(!nextPiece) return;nextCtx.clearRect(0,0,nextCanvas.width,nextCanvas.height);const size=Math.min(nextCanvas.width/4,nextCanvas.height/4);nextPiece.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c) drawBlock(j,i,nextPiece.color,nextCtx,size);}));}
+
 function collide(dx=0,dy=0,shape=null){shape=shape||current.shape;return shape.some((r,i)=>r.some((c,j)=>c&&(current.x+j+dx<0||current.x+j+dx>=COLS||current.y+i+dy>=ROWS||(current.y+i+dy>=0&&board[current.y+i+dy][current.x+j]))));}
 function rotatePiece(){const r=current.shape[0].map((_,i)=>current.shape.map(row=>row[i]).reverse());if(!collide(0,0,r)) current.shape=r;}
-function movePiece(dx){if(!collide(dx,0)) current.x+=dx;}
-function drop(){
-  if(paused||!current) return;
-  if(!collide(0,1)){current.y++;draw();}
-  else{merge();clearLines();current=nextPiece;nextPiece=randomPiece();if(collide()) gameOver();draw();}
-}
+function movePiece(dx){if(!collide(dx,0)) current.x+=dx;draw();resetLockTimer();}
+function drop(){if(paused||!current) return; if(!collide(0,1)){current.y++;draw();resetLockTimer();} else lockTimer||startLockTimer();}
+
+function startLockTimer(){lockTimer=setTimeout(()=>{merge();clearLines();current=nextPiece;nextPiece=randomPiece();combo=0;if(collide()) gameOver();draw();lockTimer=null;},lockDelay);}
+function resetLockTimer(){if(lockTimer){clearTimeout(lockTimer);lockTimer=null;}}
 function merge(){current.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c&&current.y+i>=0) board[current.y+i][current.x+j]=current.color;}));}
-function clearLines(){for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++;score+=10;}}}
+function clearLines(){let linesCleared=0;for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++;linesCleared++;score+=10;}}; if(linesCleared>0){combo++;score+=combo*10; draw(); updateLeaderboard();}}
 function gameOver(){clearInterval(dropInterval);alert("游戏结束! 分数:"+score);saveScore(score);updateLeaderboard();}
 function saveScore(s){let arr=JSON.parse(localStorage.getItem('tetrisScores')||'[]');arr.push(s);arr.sort((a,b)=>b-a);if(arr.length>5) arr.length=5;localStorage.setItem('tetrisScores',JSON.stringify(arr));}
 function updateLeaderboard(){const list=document.getElementById('leaderboard');list.innerHTML='';JSON.parse(localStorage.getItem('tetrisScores')||'[]').forEach(s=>{let li=document.createElement('li');li.innerText=s;list.appendChild(li);});}
@@ -99,7 +105,7 @@ function startGame(){
   initBoard();
   current=randomPiece();
   nextPiece=randomPiece();
-  score=0;
+  score=0;combo=0;
   paused=false;
   if(dropInterval) clearInterval(dropInterval);
   dropInterval=setInterval(drop,speed);
@@ -111,7 +117,7 @@ document.getElementById('startBtn').onclick=startGame;
 document.getElementById('pauseBtn').onclick=()=>{paused=!paused;};
 document.getElementById('difficulty').onchange=e=>{speed=parseInt(e.target.value);if(dropInterval){clearInterval(dropInterval);dropInterval=setInterval(drop,speed);}};
 
-// 竞技级 DAS + 多键独立响应
+// DAS + 多键独立响应
 const keyState={}, keyTimers={}, DAS_INTERVAL=50;
 document.addEventListener('keydown',e=>{
   if(!current) return;
@@ -121,15 +127,7 @@ document.addEventListener('keyup',e=>{
   keyState[e.key]=false;
   if(keyTimers[e.key]){clearInterval(keyTimers[e.key]); delete keyTimers[e.key];}
 });
-function keyAction(key){
-  if(!current) return;
-  switch(key){
-    case 'ArrowLeft': movePiece(-1); break;
-    case 'ArrowRight': movePiece(1); break;
-    case 'ArrowDown': drop(); break;
-    case 'ArrowUp': rotatePiece(); break;
-  }
-}
+function keyAction(key){if(!current) return; switch(key){case 'ArrowLeft': movePiece(-1); break; case 'ArrowRight': movePiece(1); break; case 'ArrowDown': drop(); break; case 'ArrowUp': rotatePiece(); break;}}
 
 // 触屏按钮
 function bindTouchBtn(id, action){
