@@ -88,14 +88,67 @@ function draw(){
 function drawBlock(x,y,c,ctxToUse=ctx,BLOCK_SIZE=BLOCK){ctxToUse.fillStyle=c;ctxToUse.fillRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);ctxToUse.strokeStyle="#000";ctxToUse.strokeRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);}
 function drawNext(){if(!nextPiece) return;nextCtx.clearRect(0,0,nextCanvas.width,nextCanvas.height);const size=Math.min(nextCanvas.width/4,nextCanvas.height/4);nextPiece.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c) drawBlock(j,i,nextPiece.color,nextCtx,size);}));}
 
-function collide(dx=0,dy=0,shape=null){shape=shape||current.shape;return shape.some((r,i)=>r.some((c,j)=>c&&(current.x+j+dx<0||current.x+j+dx>=COLS||current.y+i+dy>=ROWS||(current.y+i+dy>=0&&board[current.y+i+dy][current.x+j]))));}
-function rotatePiece(){const r=current.shape[0].map((_,i)=>current.shape.map(row=>row[i]).reverse());if(!collide(0,0,r)) current.shape=r;}
-function movePiece(dx){if(!current) return;if(!collide(dx,0)){current.x+=dx;draw();resetLockTimer();}}
-function drop(){if(paused||!current) return;if(!collide(0,1)){current.y++;draw();resetLockTimer();} else lockTimer||startLockTimer();}
-function startLockTimer(){lockTimer=setTimeout(()=>{merge();clearLines();current=nextPiece;nextPiece=randomPiece();combo=0;if(collide()) gameOver();draw();lockTimer=null;},lockDelay);}
+// 改进 collide 函数，严格检测目标位置每个格子
+function collide(newX=current.x,newY=current.y,shape=current.shape){
+  for(let i=0;i<shape.length;i++){
+    for(let j=0;j<shape[i].length;j++){
+      if(shape[i][j]){
+        let x=newX+j, y=newY+i;
+        if(x<0 || x>=COLS || y>=ROWS) return true;
+        if(y>=0 && board[y][x]) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function rotatePiece(){
+  const r=current.shape[0].map((_,i)=>current.shape.map(row=>row[i]).reverse());
+  if(!collide(current.x,current.y,r)) current.shape=r;
+}
+function movePiece(dx){
+  if(!current) return;
+  if(!collide(current.x+dx,current.y,current.shape)){
+    current.x+=dx;
+    draw();
+    resetLockTimer();
+  }
+}
+function drop(){
+  if(paused||!current) return;
+  if(!collide(current.x,current.y+1,current.shape)){
+    current.y++;
+    draw();
+    resetLockTimer();
+  } else lockTimer||startLockTimer();
+}
+function startLockTimer(){
+  lockTimer=setTimeout(()=>{
+    merge();
+    clearLines();
+    current=nextPiece;
+    nextPiece=randomPiece();
+    combo=0;
+    if(collide()) gameOver();
+    draw();
+    lockTimer=null;
+  },lockDelay);
+}
 function resetLockTimer(){if(lockTimer){clearTimeout(lockTimer);lockTimer=null;}}
 function merge(){current.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c&&current.y+i>=0) board[current.y+i][current.x+j]=current.color;}));}
-function clearLines(){let linesCleared=0;for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++;linesCleared++;score+=10;}}; if(linesCleared>0){combo++;score+=combo*10; draw(); updateLeaderboard();}}
+function clearLines(){
+  let linesCleared=0;
+  for(let y=ROWS-1;y>=0;y--){
+    if(board[y].every(v=>v)){
+      board.splice(y,1);
+      board.unshift(Array(COLS).fill(0));
+      y++;
+      linesCleared++;
+      score+=10;
+    }
+  }
+  if(linesCleared>0){combo++;score+=combo*10; draw(); updateLeaderboard();}
+}
 function gameOver(){clearInterval(dropInterval);alert("游戏结束! 分数:"+score);saveScore(score);updateLeaderboard();}
 function saveScore(s){let arr=JSON.parse(localStorage.getItem('tetrisScores')||'[]');arr.push(s);arr.sort((a,b)=>b-a);if(arr.length>5) arr.length=5;localStorage.setItem('tetrisScores',JSON.stringify(arr));}
 function updateLeaderboard(){const list=document.getElementById('leaderboard');list.innerHTML='';JSON.parse(localStorage.getItem('tetrisScores')||'[]').forEach(s=>{let li=document.createElement('li');li.innerText=s;list.appendChild(li);});}
