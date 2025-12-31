@@ -52,7 +52,6 @@ body{display:flex;flex-direction:column;height:100vh;}
   <button id="downBtn">⬇️</button>
   <button id="rotateBtn">↻</button>
   <button id="rightBtn">➡️</button>
-  <button id="dropBtn">⏬</button>
 </div>
 
 <script>
@@ -66,7 +65,6 @@ let board=[],current=null,nextPiece=null,dropInterval=null,speed=parseInt(docume
 const shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
 const colors=['#ff0000','#ff7700','#ffff00','#77ff00','#00ff77','#00ffff','#7700ff'];
 
-// Canvas 自适应右侧
 function resizeCanvas(){
   const wrapper=document.getElementById('canvasWrapper');
   const w=Math.floor(wrapper.clientWidth*0.98);
@@ -86,18 +84,14 @@ function drawNext(){if(!nextPiece) return;nextCtx.clearRect(0,0,nextCanvas.width
 function collide(dx=0,dy=0,shape=null){shape=shape||current.shape;return shape.some((r,i)=>r.some((c,j)=>c&&(current.x+j+dx<0||current.x+j+dx>=COLS||current.y+i+dy>=ROWS||(current.y+i+dy>=0&&board[current.y+i+dy][current.x+j]))));}
 function rotatePiece(){const r=current.shape[0].map((_,i)=>current.shape.map(row=>row[i]).reverse());if(!collide(0,0,r)) current.shape=r;}
 function movePiece(dx){if(!collide(dx,0)) current.x+=dx;}
-function hardDrop(){while(!collide(0,1)) current.y++;drop();}
-
 function drop(){
   if(paused||!current) return;
   if(!collide(0,1)){current.y++;draw();}
   else{merge();clearLines();current=nextPiece;nextPiece=randomPiece();if(collide()) gameOver();draw();}
 }
-
 function merge(){current.shape.forEach((r,i)=>r.forEach((c,j)=>{if(c&&current.y+i>=0) board[current.y+i][current.x+j]=current.color;}));}
 function clearLines(){for(let y=ROWS-1;y>=0;y--){if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(COLS).fill(0));y++;score+=10;}}}
 function gameOver(){clearInterval(dropInterval);alert("游戏结束! 分数:"+score);saveScore(score);updateLeaderboard();}
-
 function saveScore(s){let arr=JSON.parse(localStorage.getItem('tetrisScores')||'[]');arr.push(s);arr.sort((a,b)=>b-a);if(arr.length>5) arr.length=5;localStorage.setItem('tetrisScores',JSON.stringify(arr));}
 function updateLeaderboard(){const list=document.getElementById('leaderboard');list.innerHTML='';JSON.parse(localStorage.getItem('tetrisScores')||'[]').forEach(s=>{let li=document.createElement('li');li.innerText=s;list.appendChild(li);});}
 
@@ -134,18 +128,22 @@ function keyAction(key){
     case 'ArrowRight': movePiece(1); break;
     case 'ArrowDown': drop(); break;
     case 'ArrowUp': rotatePiece(); break;
-    case ' ': hardDrop(); break;
   }
 }
 
 // 触屏按钮
-['leftBtn','rightBtn','downBtn'].forEach(id=>{
+function bindTouchBtn(id, action){
   const btn=document.getElementById(id);
-  btn.onmousedown=btn.ontouchstart=()=>{keyState[btn.id]=true; keyActionMap(btn.id); keyTimers[btn.id]=setInterval(()=>keyActionMap(btn.id),DAS_INTERVAL);}
-  btn.onmouseup=btn.ontouchend=()=>{keyState[btn.id]=false; if(keyTimers[btn.id]){clearInterval(keyTimers[btn.id]); delete keyTimers[btn.id];}}
-});
-document.getElementById('rotateBtn').onclick=document.getElementById('dropBtn').onclick=function(){if(this.id==='rotateBtn') rotatePiece(); else hardDrop();}
-function keyActionMap(id){switch(id){case 'leftBtn':movePiece(-1);break;case 'rightBtn':movePiece(1);break;case 'downBtn':drop();break;}}
+  const timerKey='touch_'+id;
+  btn.addEventListener('touchstart', e=>{e.preventDefault(); keyState[timerKey]=true; action(); keyTimers[timerKey]=setInterval(action,DAS_INTERVAL);});
+  btn.addEventListener('touchend', e=>{keyState[timerKey]=false; if(keyTimers[timerKey]){clearInterval(keyTimers[timerKey]); delete keyTimers[timerKey];}});
+  btn.addEventListener('mousedown', e=>{keyState[timerKey]=true; action(); keyTimers[timerKey]=setInterval(action,DAS_INTERVAL);});
+  btn.addEventListener('mouseup', e=>{keyState[timerKey]=false; if(keyTimers[timerKey]){clearInterval(keyTimers[timerKey]); delete keyTimers[timerKey];}});
+}
+bindTouchBtn('leftBtn',()=>movePiece(-1));
+bindTouchBtn('rightBtn',()=>movePiece(1));
+bindTouchBtn('downBtn',()=>drop());
+document.getElementById('rotateBtn').addEventListener('click',rotatePiece);
 
 // 手势滑动
 let touchStartX=0,touchStartY=0;
