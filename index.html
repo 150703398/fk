@@ -1,279 +1,266 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>卡通风格俄罗斯方块</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>卡通俄罗斯方块</title>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #a0eaff;
-  font-family: Arial, sans-serif;
-}
-
+* { box-sizing: border-box; font-family: "Comic Sans MS","Arial Rounded MT Bold",sans-serif; }
 body {
+  margin: 0;
+  background: #cceeff;
+  height: 100vh;
   display: flex;
-  flex-direction: column;
 }
 
-#gameContainer {
-  flex: 1;
+/* === 主布局 === */
+#app {
   display: flex;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
-/* ===== 左侧 ===== */
+/* === 左侧面板 === */
 #leftPanel {
   width: 20%;
-  min-width: 150px;
-  max-width: 220px;
+  min-width: 120px;
+  background: #fff3cd;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  padding: 6px;
-  box-sizing: border-box;
+  gap: 8px;
 }
 
-/* 排行榜 */
-#leaderboardBox {
-  flex: 1;
-  background: rgba(255,255,255,0.7);
-  border-radius: 8px;
+/* === 右侧游戏区 === */
+#gameArea {
+  width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   padding: 6px;
-  margin-bottom: 6px;
-  overflow-y: auto;
 }
-#leaderboardBox ol {
-  padding-left: 18px;
-  margin: 4px 0;
+
+/* === Canvas === */
+#gameCanvas {
+  width: 100%;
+  aspect-ratio: 10 / 20;
+  background: #222;
+  border-radius: 12px;
+}
+
+/* === 排行榜 === */
+.panel {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 6px;
+  text-align: center;
+  font-size: 12px;
+}
+
+#rankList {
+  font-size: 11px;
+}
+
+/* === 下一个方块 === */
+#nextBox canvas {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #333;
+  border-radius: 8px;
+}
+
+/* === 按钮 === */
+button, select {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #4db8ff;
+  color: #fff;
+}
+
+button:active { background: #3399ff; }
+
+/* === 控制键 === */
+#controls {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  margin-top: 6px;
+}
+
+.ctrl {
+  width: 22%;
+  padding: 10px 0;
+  background: #ffb84d;
+  border-radius: 10px;
+  text-align: center;
   font-size: 14px;
 }
 
-/* 下一个方块 */
-#nextBox {
-  height: 120px;
-  background: rgba(255,255,255,0.7);
-  border-radius: 8px;
-  margin-bottom: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-#nextCanvas {
-  background: #fff;
-  border: 2px solid #ffb347;
-  border-radius: 6px;
-}
-
-/* 控制按钮 */
-#controlBox {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-#controlBox select,
-#controlBox button {
-  font-size: 12px;
-  padding: 5px;
-  border: none;
-  border-radius: 6px;
-  background: #ffb347;
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-  cursor: pointer;
-}
-
-/* ===== 右侧 Canvas ===== */
-#canvasArea {
-  width: 80%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-#gameCanvas {
-  background: #fff;
-  border: 4px solid #ffb347;
-  border-radius: 12px;
-  touch-action: none;
-}
-
-/* ===== 底部方向键 ===== */
-#touchControls {
-  display: flex;
-  gap: 6px;
-  padding: 6px;
-  background: rgba(255,255,255,0.4);
-}
-#touchControls button {
-  flex: 1;
-  height: 52px;
-  font-size: 20px;
-  border: none;
-  border-radius: 10px;
-  background: #ffb347;
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+/* === 响应式 === */
+@media (max-width: 768px) {
+  #leftPanel { width: 30%; }
+  #gameArea { width: 70%; }
 }
 </style>
 </head>
 
 <body>
+<div id="app">
 
-<div id="gameContainer">
   <!-- 左侧 -->
   <div id="leftPanel">
-    <div id="leaderboardBox">
-      <strong>排行榜</strong>
-      <ol id="leaderboard"></ol>
+
+    <div class="panel">
+      <b>排行榜</b>
+      <div id="rankList"></div>
     </div>
 
-    <div id="nextBox">
-      <div>下一个</div>
+    <div class="panel" id="nextBox">
+      <b>下一个方块</b>
       <canvas id="nextCanvas" width="80" height="80"></canvas>
     </div>
 
-    <div id="controlBox">
+    <div class="panel">
       <select id="difficulty">
-        <option value="600">简单</option>
-        <option value="350" selected>普通</option>
-        <option value="180">困难</option>
+        <option value="800">简单</option>
+        <option value="500">普通</option>
+        <option value="300">困难</option>
       </select>
-      <button id="startBtn">开始</button>
-      <button id="pauseBtn">暂停</button>
+      <button onclick="startGame()">开始</button>
+      <button onclick="pauseGame()">暂停</button>
     </div>
+
   </div>
 
   <!-- 右侧 -->
-  <div id="canvasArea">
+  <div id="gameArea">
     <canvas id="gameCanvas"></canvas>
-  </div>
-</div>
 
-<!-- 方向键 -->
-<div id="touchControls">
-  <button id="leftBtn">⬅️</button>
-  <button id="downBtn">⬇️</button>
-  <button id="rotateBtn">↻</button>
-  <button id="rightBtn">➡️</button>
+    <div id="controls">
+      <div class="ctrl" onclick="move(-1,0)">⬅</div>
+      <div class="ctrl" onclick="move(0,1)">⬇</div>
+      <div class="ctrl" onclick="rotate()">⟳</div>
+      <div class="ctrl" onclick="move(1,0)">➡</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-const COLS = 10, ROWS = 20;
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const nextCanvas = document.getElementById("nextCanvas");
-const nextCtx = nextCanvas.getContext("2d");
-
+const COLS=10, ROWS=20;
 let blockSize;
-let board, current, nextPiece;
-let timer = null;
-let speed = 350;
-let paused = false;
 
-const shapes = [
-  [[1,1,1,1]],
-  [[1,1],[1,1]],
-  [[0,1,0],[1,1,1]],
-  [[1,0,0],[1,1,1]],
-  [[0,0,1],[1,1,1]],
-  [[1,1,0],[0,1,1]],
-  [[0,1,1],[1,1,0]]
-];
-const colors = ["#ff595e","#ffca3a","#8ac926","#1982c4","#6a4c93"];
-
-function resizeCanvas() {
-  const area = document.getElementById("canvasArea");
-  const maxW = area.clientWidth;
-  const maxH = area.clientHeight;
-  blockSize = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
-  canvas.width = blockSize * COLS;
-  canvas.height = blockSize * ROWS;
-  draw();
+function resizeCanvas(){
+  const w = canvas.clientWidth;
+  canvas.width = w;
+  canvas.height = w * 2;
+  blockSize = canvas.width / COLS;
 }
 window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
-function newPiece() {
-  return {
-    shape: shapes[Math.floor(Math.random()*shapes.length)],
-    color: colors[Math.floor(Math.random()*colors.length)],
-    x: 3,
-    y: 0
-  };
-}
+/* === 俄罗斯方块核心（精简稳定版） === */
+const shapes = [
+ [[1,1,1,1]],
+ [[1,1],[1,1]],
+ [[0,1,0],[1,1,1]],
+ [[1,0,0],[1,1,1]],
+ [[0,0,1],[1,1,1]],
+];
+let board = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+let cur,next;
+let x=3,y=0,score=0,loop=null,paused=false;
 
-function startGame() {
-  board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-  current = newPiece();
-  nextPiece = newPiece();
-  paused = false;
-  clearInterval(timer);
-  timer = setInterval(drop, speed);
-  draw();
-  updateLeaderboard();
-}
-
-function drawBlock(x,y,color,c=ctx,size=blockSize) {
-  c.fillStyle = color;
-  c.fillRect(x*size,y*size,size,size);
-  c.strokeStyle = "#fff";
-  c.strokeRect(x*size,y*size,size,size);
-}
-
-function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  board.forEach((r,y)=>r.forEach((v,x)=>v && drawBlock(x,y,v)));
-  if(current){
-    current.shape.forEach((r,y)=>r.forEach((v,x)=>v && drawBlock(current.x+x,current.y+y,current.color)));
-  }
+function newPiece(){
+  cur = next || shapes[Math.random()*shapes.length|0];
+  next = shapes[Math.random()*shapes.length|0];
+  x=3;y=0;
   drawNext();
 }
 
-function drawNext() {
-  nextCtx.clearRect(0,0,80,80);
-  const size = 18;
-  nextPiece.shape.forEach((r,y)=>r.forEach((v,x)=>v && drawBlock(x,y,nextPiece.color,nextCtx,size)));
+function draw(){
+  ctx.fillStyle="#222";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  board.forEach((r,yy)=>r.forEach((v,xx)=>{
+    if(v){ drawBlock(xx,yy,"#4db8ff"); }
+  }));
+  cur.forEach((r,yy)=>r.forEach((v,xx)=>{
+    if(v) drawBlock(x+xx,y+yy,"#ff6666");
+  }));
 }
 
-function collide(dx,dy,shape=current.shape){
-  return shape.some((r,y)=>r.some((v,x)=>{
+function drawBlock(xx,yy,color){
+  ctx.fillStyle=color;
+  ctx.fillRect(xx*blockSize,yy*blockSize,blockSize-1,blockSize-1);
+}
+
+function move(dx,dy){
+  if(collide(x+dx,y+dy)) return;
+  x+=dx;y+=dy;
+  draw();
+}
+
+function rotate(){
+  const r=cur[0].map((_,i)=>cur.map(r=>r[i]).reverse());
+  const old=cur;
+  cur=r;
+  if(collide(x,y)) cur=old;
+  draw();
+}
+
+function collide(nx,ny){
+  return cur.some((r,yy)=>r.some((v,xx)=>{
     if(!v) return false;
-    let nx = current.x + x + dx;
-    let ny = current.y + y + dy;
-    return nx<0 || nx>=COLS || ny>=ROWS || (ny>=0 && board[ny][nx]);
+    let px=nx+xx,py=ny+yy;
+    return px<0||px>=COLS||py>=ROWS||board[py]?.[px];
   }));
 }
 
 function drop(){
-  if(paused) return;
-  if(!collide(0,1)) current.y++;
-  else {
-    current.shape.forEach((r,y)=>r.forEach((v,x)=>{
-      if(v) board[current.y+y][current.x+x] = current.color;
+  if(!collide(x,y+1)){ y++; }
+  else{
+    cur.forEach((r,yy)=>r.forEach((v,xx)=>{
+      if(v) board[y+yy][x+xx]=1;
     }));
-    current = nextPiece;
-    nextPiece = newPiece();
+    clearLines();
+    newPiece();
   }
   draw();
 }
 
-document.getElementById("startBtn").onclick = startGame;
-document.getElementById("pauseBtn").onclick = () => paused = !paused;
-document.getElementById("difficulty").onchange = e => {
-  speed = +e.target.value;
-  if(timer){ clearInterval(timer); timer=setInterval(drop,speed); }
-};
+function clearLines(){
+  board=board.filter(r=>r.some(v=>!v));
+  while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
+}
 
-document.getElementById("leftBtn").onclick = ()=>!collide(-1,0)&&current.x--;
-document.getElementById("rightBtn").onclick = ()=>!collide(1,0)&&current.x++;
-document.getElementById("downBtn").onclick = drop;
-document.getElementById("rotateBtn").onclick = ()=>{
-  const r = current.shape[0].map((_,i)=>current.shape.map(row=>row[i]).reverse());
-  if(!collide(0,0,r)) current.shape=r;
-};
+function startGame(){
+  if(loop) clearInterval(loop);
+  board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  newPiece();
+  paused=false;
+  loop=setInterval(()=>{ if(!paused) drop(); },+difficulty.value);
+}
 
-resizeCanvas();
+function pauseGame(){ paused=!paused; }
+
+function drawNext(){
+  const n=document.getElementById("nextCanvas");
+  const c=n.getContext("2d");
+  c.clearRect(0,0,n.width,n.height);
+  next.forEach((r,y)=>r.forEach((v,x)=>{
+    if(v){
+      c.fillStyle="#4db8ff";
+      c.fillRect(x*20,y*20,18,18);
+    }
+  }));
+}
 </script>
 </body>
 </html>
