@@ -3,33 +3,39 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>竞技版俄罗斯方块</title>
+<title>竞技级俄罗斯方块</title>
+
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#1b1b1b;color:#fff;font-family:sans-serif}
 body{display:flex;flex-direction:column}
 
-#main{flex:1;display:flex;overflow:hidden}
+#main{flex:1;display:flex}
 #left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px}
 #right{width:70%;display:flex;justify-content:center;align-items:center}
 
 .panel{background:#2a2a2a;border-radius:10px;padding:8px}
 h3{margin:4px 0;font-size:14px;text-align:center}
 
-#gameWrap{width:100%;aspect-ratio:10/20;max-height:100%}
-canvas{width:100%;height:100%;background:#000;border-radius:10px}
-
-button,select{
-  width:100%;padding:6px;margin:3px 0;
-  border-radius:8px;border:none;font-size:14px
+#gameWrap{
+  width:100%;
+  max-width:420px;
+  aspect-ratio:10/20;
+}
+canvas{
+  display:block;
+  width:100%;
+  height:auto;
+  background:#000;
+  border-radius:10px;
 }
 
-#controls{
-  display:flex;width:100%;
-}
+#controls{display:flex;width:100%}
 .ctrl{
-  flex:1;margin:2px;
-  padding:14px;font-size:18px;
+  flex:1;
+  padding:14px;
+  font-size:18px;
+  margin:2px;
   border-radius:10px;
 }
 </style>
@@ -38,16 +44,8 @@ button,select{
 
 <div id="main">
   <div id="left">
-    <div class="panel">
-      <h3>排行榜</h3>
-      <div id="rank"></div>
-    </div>
-
-    <div class="panel">
-      <h3>下一个</h3>
-      <canvas id="next" width="80" height="80"></canvas>
-    </div>
-
+    <div class="panel"><h3>排行榜</h3></div>
+    <div class="panel"><h3>下一个</h3><canvas id="next" width="80" height="80"></canvas></div>
     <div class="panel">
       <select id="level">
         <option value="800">简单</option>
@@ -74,18 +72,18 @@ button,select{
 </div>
 
 <script>
-/* =================== 基础参数 =================== */
+/* ===== 基础 ===== */
 const COLS=10,ROWS=20,BLOCK=30;
 const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
 const nextC=document.getElementById("next"),nctx=nextC.getContext("2d");
 
-let board=[],state="idle",score=0,combo=0;
-let cur,next,bag=[];
+let board,cur,next,bag=[];
+let state="idle",score=0;
 let dropInterval=500,dropTimer=0;
 let lockTimer=0,LOCK_DELAY=500;
 let lastTime=0;
 
-/* =================== 方块 =================== */
+/* ===== 方块 ===== */
 const SHAPES={
  I:[[1,1,1,1]],
  O:[[1,1],[1,1]],
@@ -95,53 +93,51 @@ const SHAPES={
  J:[[1,0,0],[1,1,1]],
  L:[[0,0,1],[1,1,1]]
 };
-
-const COLORS={
- I:"#4df",O:"#fd4",T:"#d5f",S:"#4f4",Z:"#f44",J:"#44f",L:"#fa4"
-};
+const COLORS={I:"#4df",O:"#fd4",T:"#d5f",S:"#4f4",Z:"#f44",J:"#44f",L:"#fa4"};
 
 function newBag(){
  bag=Object.keys(SHAPES).sort(()=>Math.random()-0.5);
 }
-function nextPiece(){
- if(bag.length===0)newBag();
+function getNext(){
+ if(!bag.length) newBag();
  const k=bag.pop();
  return {k,shape:SHAPES[k],x:3,y:0};
 }
 
-/* =================== 初始化 =================== */
+/* ===== 初始化 ===== */
 function reset(){
  board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
- score=0;combo=0;
- cur=nextPiece();
- next=nextPiece();
+ cur=getNext(); next=getNext();
+ score=0; dropTimer=0; lockTimer=0;
  state="playing";
 }
 
-/* =================== 碰撞 =================== */
+/* ===== 碰撞 ===== */
 function canMove(x,y,shape){
  for(let r=0;r<shape.length;r++)
   for(let c=0;c<shape[r].length;c++)
    if(shape[r][c]){
-     let nx=x+c,ny=y+r;
-     if(nx<0||nx>=COLS||ny>=ROWS) return false;
-     if(ny>=0 && board[ny][nx]) return false;
+    let nx=x+c,ny=y+r;
+    if(nx<0||nx>=COLS||ny>=ROWS) return false;
+    if(ny>=0 && board[ny][nx]) return false;
    }
  return true;
 }
 
-/* =================== 主循环 =================== */
+/* ===== 主循环 ===== */
 function loop(t){
- if(state!=="playing"){lastTime=t;requestAnimationFrame(loop);return;}
- const dt=t-lastTime;lastTime=t;
+ if(state!=="playing"){ lastTime=t; requestAnimationFrame(loop); return;}
+ const dt=t-lastTime; lastTime=t;
+
  dropTimer+=dt;
 
- if(dropTimer>dropInterval){
+ if(dropTimer>=dropInterval){
   if(canMove(cur.x,cur.y+1,cur.shape)){
     cur.y++;
+    lockTimer=0;
   }else{
-    lockTimer+=dt;
-    if(lockTimer>LOCK_DELAY) lock();
+    lockTimer+=dropInterval;
+    if(lockTimer>=LOCK_DELAY) lock();
   }
   dropTimer=0;
  }
@@ -150,50 +146,30 @@ function loop(t){
  requestAnimationFrame(loop);
 }
 
-/* =================== 固定 =================== */
+/* ===== 锁定 ===== */
 function lock(){
- cur.shape.forEach((r,i)=>r.forEach((v,j)=>{
-  if(v) board[cur.y+i][cur.x+j]=cur.k;
+ cur.shape.forEach((r,y)=>r.forEach((v,x)=>{
+  if(v) board[cur.y+y][cur.x+x]=cur.k;
  }));
- clearLines();
- cur=next;
- next=nextPiece();
+ cur=next; next=getNext();
  lockTimer=0;
  if(!canMove(cur.x,cur.y,cur.shape)) state="gameover";
 }
 
-/* =================== 消行 =================== */
-function clearLines(){
- let lines=0;
- board=board.filter(r=>{
-  if(r.every(v=>v)){lines++;return false;}
-  return true;
- });
- while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
- if(lines){
-  combo++;
-  score+=lines*100*combo;
- }else combo=0;
-}
-
-/* =================== 绘制 =================== */
+/* ===== 绘制 ===== */
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
  board.forEach((r,y)=>r.forEach((v,x)=>{
   if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);}
  }));
- drawGhost();
- drawPiece(cur);
- drawNext();
+ drawGhost(); drawPiece(cur); drawNext();
 }
-
 function drawPiece(p){
  ctx.fillStyle=COLORS[p.k];
  p.shape.forEach((r,y)=>r.forEach((v,x)=>{
   if(v) ctx.fillRect((p.x+x)*BLOCK,(p.y+y)*BLOCK,BLOCK,BLOCK);
  }));
 }
-
 function drawGhost(){
  let y=cur.y;
  while(canMove(cur.x,y+1,cur.shape)) y++;
@@ -201,7 +177,6 @@ function drawGhost(){
  drawPiece({...cur,y});
  ctx.globalAlpha=1;
 }
-
 function drawNext(){
  nctx.clearRect(0,0,80,80);
  next.shape.forEach((r,y)=>r.forEach((v,x)=>{
@@ -212,10 +187,10 @@ function drawNext(){
  }));
 }
 
-/* =================== 输入 =================== */
+/* ===== 操作 ===== */
 function move(dx){
  if(canMove(cur.x+dx,cur.y,cur.shape)){
-  cur.x+=dx;lockTimer=0;
+  cur.x+=dx; lockTimer=0;
  }
 }
 function rotate(){
@@ -223,41 +198,34 @@ function rotate(){
  if(canMove(cur.x,cur.y,r)){cur.shape=r;lockTimer=0;}
 }
 function softDrop(){
- if(canMove(cur.x,cur.y+1,cur.shape)){
-  cur.y++;score++;
- }
+ if(canMove(cur.x,cur.y+1,cur.shape)){cur.y++;score++;}
 }
 
-/* =================== 事件 =================== */
-document.getElementById("start").onclick=()=>{
- dropInterval=+level.value;
- reset();
-};
-document.getElementById("pause").onclick=()=>{
- if(state==="playing")state="paused";
- else if(state==="paused")state="playing";
-};
+/* ===== 按钮 ===== */
+start.onclick=()=>{dropInterval=+level.value;reset();};
+pause.onclick=()=>{state=state==="playing"?"paused":"playing";};
 
-leftBtn.onmousedown=()=>hold("l");
-rightBtn.onmousedown=()=>hold("r");
-downBtn.onmousedown=()=>hold("d");
-rotBtn.onclick=rotate;
-
+/* ===== 长按 ===== */
 let holdKey=null,holdTimer=null;
-function hold(k){
+function startHold(k){
  holdKey=k;
  doHold();
  holdTimer=setInterval(doHold,60);
 }
 function doHold(){
- if(holdKey==="l")move(-1);
- if(holdKey==="r")move(1);
- if(holdKey==="d")softDrop();
+ if(holdKey==="l") move(-1);
+ if(holdKey==="r") move(1);
+ if(holdKey==="d") softDrop();
 }
-document.onmouseup=()=>{
- clearInterval(holdTimer);
- holdKey=null;
-};
+function stopHold(){
+ clearInterval(holdTimer); holdKey=null;
+}
+
+leftBtn.onmousedown=()=>startHold("l");
+rightBtn.onmousedown=()=>startHold("r");
+downBtn.onmousedown=()=>startHold("d");
+rotBtn.onclick=rotate;
+document.onmouseup=stopHold;
 
 requestAnimationFrame(loop);
 </script>
