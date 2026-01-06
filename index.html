@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>职业竞技级俄罗斯方块</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -44,7 +44,7 @@ button,select{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;
 <div id="controls">
   <div class="ctrl" id="leftBtn">◀</div>
   <div class="ctrl" id="downBtn">▼</div>
-  <div class="ctrl" id="rotBtn">⟳</div>
+  <div class="ctrl" id="upBtn">⟳</div>
   <div class="ctrl" id="rightBtn">▶</div>
 </div>
 
@@ -54,15 +54,7 @@ const COLS=10,ROWS=20,BLOCK=30;
 const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
 const nextC=document.getElementById("next"),nctx=nextC.getContext("2d");
 let board=[],cur,next,bag=[],state="idle",score=0,combo=0,dropInterval=500,dropTimer=0,lockTimer=0,LOCK_DELAY=500,lastTime=0;
-const SHAPES={
- I:[[1,1,1,1]],
- O:[[1,1],[1,1]],
- T:[[0,1,0],[1,1,1]],
- S:[[0,1,1],[1,1,0]],
- Z:[[1,1,0],[0,1,1]],
- J:[[1,0,0],[1,1,1]],
- L:[[0,0,1],[1,1,1]]
-};
+const SHAPES={I:[[1,1,1,1]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1]],S:[[0,1,1],[1,1,0]],Z:[[1,1,0],[0,1,1]],J:[[1,0,0],[1,1,1]],L:[[0,0,1],[1,1,1]]};
 const COLORS={I:"#4df",O:"#fd4",T:"#d5f",S:"#4f4",Z:"#f44",J:"#44f",L:"#fa4"};
 
 // ==================== 7-Bag ====================
@@ -138,9 +130,8 @@ function loop(t){
  let dt=t-lastTime;lastTime=t;
  dropTimer+=dt;
 
- // 左移
+ // 左右移动
  if(inputState.left){ DAS_L+=dt; if(DAS_L>=DAS){ARR_L+=dt; while(ARR_L>=ARR){move(-1);ARR_L-=ARR;}} }else{DAS_L=0;ARR_L=0;}
- // 右移
  if(inputState.right){ DAS_R+=dt; if(DAS_R>=DAS){ARR_R+=dt; while(ARR_R>=ARR){move(1);ARR_R-=ARR;}} }else{DAS_R=0;ARR_R=0;}
  // 下落
  if(inputState.down){softDrop();}
@@ -209,28 +200,25 @@ document.addEventListener("keyup",e=>{
 });
 
 // ==================== 屏幕按钮 ====================
-["leftBtn","rightBtn","downBtn"].forEach(id=>{
- let dir=id==="leftBtn"? "left": id==="rightBtn"? "right":"down";
+["leftBtn","rightBtn","downBtn","upBtn"].forEach(id=>{
+ let dir=id==="leftBtn"? "left": id==="rightBtn"? "right": id==="downBtn"?"down":"up";
  const el=document.getElementById(id);
- el.addEventListener("pointerdown",()=>inputState[dir]=true);
- el.addEventListener("pointerup",()=>inputState[dir]=false);
- el.addEventListener("pointerleave",()=>inputState[dir]=false);
+ el.addEventListener("pointerdown",e=>{e.preventDefault();inputState[dir]=true;},{passive:false});
+ el.addEventListener("pointerup",e=>{inputState[dir]=false;},{passive:false});
+ el.addEventListener("pointerleave",e=>{inputState[dir]=false;},{passive:false});
 });
-// rotBtn 改为向上旋转
-document.getElementById("rotBtn").addEventListener("pointerdown",()=>inputState.up=true);
-document.getElementById("rotBtn").addEventListener("pointerup",()=>inputState.up=false);
 
 // ==================== 触屏滑动 ====================
 let startX=0,startY=0;
-canvas.addEventListener("touchstart",e=>{const t=e.touches[0];startX=t.clientX;startY=t.clientY;});
+canvas.addEventListener("touchstart",e=>{const t=e.touches[0];startX=t.clientX;startY=t.clientY;},{passive:false});
 canvas.addEventListener("touchmove",e=>{
  e.preventDefault();
  const t=e.touches[0];
  let dx=t.clientX-startX,dy=t.clientY-startY;
  if(Math.abs(dx)>BLOCK){dx>0?move(1):move(-1);startX=t.clientX;}
  if(dy>BLOCK){dy<0?inputState.up=true:softDrop();startY=t.clientY;}
-});
-canvas.addEventListener("touchend",e=>{inputState.up=false;});
+},{passive:false});
+canvas.addEventListener("touchend",e=>{inputState.up=false;inputState.down=false;inputState.left=false;inputState.right=false;},{passive:false});
 
 // ==================== 排行榜 ====================
 function updateRank(){document.getElementById("rank").innerText="分数:"+score+"  连击:"+combo+(tSpin?"  T-Spin":"");}
