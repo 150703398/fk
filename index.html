@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>职业级竞技版俄罗斯方块（卡通风格）</title>
+<title>终极职业竞技版俄罗斯方块</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;font-family:sans-serif;background:#222;color:#fff;display:flex;flex-direction:column;}
+html,body{height:100%;font-family:sans-serif;background:#222;color:#fff;display:flex;flex-direction:column;user-select:none;touch-action:none;}
 #main{flex:1;display:flex;overflow:hidden;}
 #left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px;}
 #right{width:70%;display:flex;justify-content:center;align-items:center;}
@@ -15,7 +15,7 @@ h3{margin:4px 0;font-size:14px;text-align:center;}
 #gameWrap{width:100%;max-width:420px;aspect-ratio:10/20;}
 canvas{display:block;width:100%;height:auto;background:#000;border-radius:10px;}
 #controls{display:flex;width:100%;margin-top:4px;}
-.ctrl{flex:1;margin:2px;padding:14px;font-size:18px;border-radius:10px;background:#555;color:#fff;user-select:none;}
+.ctrl{flex:1;margin:2px;padding:14px;font-size:18px;border-radius:10px;background:#555;color:#fff;}
 .ctrl:active{background:#888;}
 button,select{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;font-size:14px;}
 </style>
@@ -49,15 +49,11 @@ button,select{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;
 </div>
 
 <script>
-// ==================== 基础参数 ====================
+// ==================== 基本参数 ====================
 const COLS=10,ROWS=20,BLOCK=30;
 const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
 const nextC=document.getElementById("next"),nctx=nextC.getContext("2d");
-
-let board=[],cur,next,bag=[],state="idle",score=0,combo=0;
-let dropInterval=500,dropTimer=0,lockTimer=0,LOCK_DELAY=500,lastTime=0;
-
-// ==================== 方块 ====================
+let board=[],cur,next,bag=[],state="idle",score=0,combo=0,dropInterval=500,dropTimer=0,lockTimer=0,LOCK_DELAY=500,lastTime=0;
 const SHAPES={
  I:[[1,1,1,1]],
  O:[[1,1],[1,1]],
@@ -69,9 +65,9 @@ const SHAPES={
 };
 const COLORS={I:"#4df",O:"#fd4",T:"#d5f",S:"#4f4",Z:"#f44",J:"#44f",L:"#fa4"};
 
-// ==================== 7-Bag 随机 ====================
+// ==================== 7-Bag ====================
 function newBag(){ bag=Object.keys(SHAPES).sort(()=>Math.random()-0.5);}
-function getNext(){ if(!bag.length)newBag(); const k=bag.pop(); return {k,shape:SHAPES[k],x:3,y:0};}
+function getNext(){ if(!bag.length)newBag(); const k=bag.pop(); return {k,shape:SHAPES[k],x:3,y:0,rot:0};}
 
 // ==================== 初始化 ====================
 function reset(){
@@ -80,9 +76,10 @@ function reset(){
  cur=getNext(); next=getNext();
  dropTimer=0;lockTimer=0;
  state="playing";
+ updateRank();
 }
 
-// ==================== 碰撞 ====================
+// ==================== 碰撞检测 ====================
 function canMove(x,y,shape){
  for(let r=0;r<shape.length;r++)
   for(let c=0;c<shape[r].length;c++)
@@ -94,20 +91,64 @@ function canMove(x,y,shape){
  return true;
 }
 
+// ==================== SRS Wall Kick ====================
+const WALL_KICKS={
+ I:[[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
+    [[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
+    [[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
+    [[0,0],[1,0],[-2,0],[1,-2],[-2,1]]],
+ JLSTZ:[[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
+        [[0,0],[1,0],[1,-1],[0,2],[1,2]],
+        [[0,0],[1,0],[1,1],[0,-2],[1,-2]],
+        [[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]]
+};
+
+function rotate(){
+ const oldShape=cur.shape;
+ const r=oldShape[0].map((_,i)=>oldShape.map(row=>row[i]).reverse());
+ const kicks=(cur.k==="I")?WALL_KICKS.I:WALL_KICKS.JLSTZ;
+ for(let k of kicks[cur.rot]){
+   if(canMove(cur.x+k[0],cur.y+k[1],r)){
+     cur.x+=k[0]; cur.y+=k[1]; cur.shape=r;
+     cur.rot=(cur.rot+1)%4; lockTimer=0;
+     checkTSpin(); // T-Spin判定
+     return;
+   }
+ }
+}
+
+// ==================== T-Spin 判定 ====================
+let tSpin=false;
+function checkTSpin(){
+ if(cur.k!=="T") { tSpin=false; return; }
+ let corners=[[0,0],[2,0],[0,2],[2,2]],count=0;
+ for(let [dx,dy] of corners){
+   let x=cur.x+dx,y=cur.y+dy;
+   if(x<0||x>=COLS||y<0||y>=ROWS||board[y][x]) count++;
+ }
+ tSpin=(count>=3);
+}
+
 // ==================== 主循环 ====================
+let inputState={left:false,right:false,down:false};
+let DAS=170,ARR=50,DAS_Timer=0,ARR_Timer=0;
 function loop(t){
  if(state!=="playing"){lastTime=t;requestAnimationFrame(loop);return;}
  let dt=t-lastTime;lastTime=t;
  dropTimer+=dt;
-
- // 下落
+ // 横移处理
+ if(inputState.left){
+   DAS_Timer+=dt;
+   if(DAS_Timer>=DAS){ARR_Timer+=dt; while(ARR_Timer>=ARR){move(-1);ARR_Timer-=ARR;}}
+ }
+ if(inputState.right){
+   DAS_Timer+=dt;
+   if(DAS_Timer>=DAS){ARR_Timer+=dt; while(ARR_Timer>=ARR){move(1);ARR_Timer-=ARR;}}
+ }
+ // 软降
+ if(inputState.down){softDrop();}
  if(dropTimer>=dropInterval){
-   if(canMove(cur.x,cur.y+1,cur.shape)){
-     cur.y++; lockTimer=0;
-   }else{
-     lockTimer+=dt;
-     if(lockTimer>=LOCK_DELAY) lock();
-   }
+   if(canMove(cur.x,cur.y+1,cur.shape)){cur.y++;lockTimer=0;}else{lockTimer+=dropTimer;if(lockTimer>=LOCK_DELAY) lock();}
    dropTimer=0;
  }
  draw();
@@ -116,11 +157,9 @@ function loop(t){
 
 // ==================== 锁定 ====================
 function lock(){
- cur.shape.forEach((r,y)=>r.forEach((v,x)=>{
-  if(v) board[cur.y+y][cur.x+x]=cur.k;
- }));
+ cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v && cur.y+y>=0) board[cur.y+y][cur.x+x]=cur.k;}));
  clearLines();
- cur=next; next=getNext(); lockTimer=0;
+ cur=next; next=getNext(); cur.rot=0; lockTimer=0; DAS_Timer=0; ARR_Timer=0; tSpin=false;
  if(!canMove(cur.x,cur.y,cur.shape)) state="gameover";
 }
 
@@ -132,63 +171,65 @@ function clearLines(){
   return true;
  });
  while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
- if(lines){combo++;score+=lines*100*combo;}else combo=0;
+ if(lines>0){combo++;score+=lines*100*combo; if(tSpin) score+=400;}
+ else combo=0;
+ updateRank();
 }
 
 // ==================== 绘制 ====================
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
  board.forEach((r,y)=>r.forEach((v,x)=>{if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);}}));
- drawGhost();
- drawPiece(cur);
- drawNext();
+ drawGhost(); drawPiece(cur); drawNext();
 }
-function drawPiece(p){
- ctx.fillStyle=COLORS[p.k];
- p.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((p.x+x)*BLOCK,(p.y+y)*BLOCK,BLOCK,BLOCK);}));
-}
-function drawGhost(){
- let y=cur.y;
- while(canMove(cur.x,y+1,cur.shape))y++;
- ctx.globalAlpha=0.3; drawPiece({...cur,y}); ctx.globalAlpha=1;
-}
-function drawNext(){
- nctx.clearRect(0,0,80,80);
- next.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=COLORS[next.k];nctx.fillRect(x*20,y*20,20,20);}}));
-}
+function drawPiece(p){ctx.fillStyle=COLORS[p.k];p.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((p.x+x)*BLOCK,(p.y+y)*BLOCK,BLOCK,BLOCK);}))}
+function drawGhost(){let y=cur.y;while(canMove(cur.x,y+1,cur.shape))y++;ctx.globalAlpha=0.3;drawPiece({...cur,y});ctx.globalAlpha=1;}
+function drawNext(){nctx.clearRect(0,0,80,80);next.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=COLORS[next.k];nctx.fillRect(x*20,y*20,20,20);}}));}
 
-// ==================== 操作 ====================
-function move(dx){if(canMove(cur.x+dx,cur.y,cur.shape)){cur.x+=dx;lockTimer=0;}}
-function rotate(){const r=cur.shape[0].map((_,i)=>cur.shape.map(row=>row[i]).reverse());if(canMove(cur.x,cur.y,r)){cur.shape=r;lockTimer=0;}}
+// ==================== 移动 ====================
+function move(dx){if(canMove(cur.x+dx,cur.y,cur.shape)){cur.x+=dx;lockTimer=0;DAS_Timer=0;ARR_Timer=0;}}
 function softDrop(){if(canMove(cur.x,cur.y+1,cur.shape)){cur.y++;score++;}}
 
 // ==================== 按钮 ====================
-start.onclick=()=>{dropInterval=+level.value;reset();}
-pause.onclick=()=>{state=state==="playing"?"paused":"playing";}
+document.getElementById("start").onclick=()=>{dropInterval=+document.getElementById("level").value;reset();}
+document.getElementById("pause").onclick=()=>{state=state==="playing"?"paused":"playing";}
 
-// ==================== 长按 & 滑动 ====================
-let holdKey=null,holdTimer=null;
-function startHold(k){holdKey=k;doHold();holdTimer=setInterval(doHold,60);}
-function doHold(){if(holdKey==="l")move(-1);if(holdKey==="r")move(1);if(holdKey==="d")softDrop();}
-function stopHold(){clearInterval(holdTimer);holdKey=null;}
+// ==================== 长按输入 ====================
+function keyDownHandler(e){
+ if(e.key==="ArrowLeft"){inputState.left=true; DAS_Timer=0;ARR_Timer=0;}
+ if(e.key==="ArrowRight"){inputState.right=true; DAS_Timer=0;ARR_Timer=0;}
+ if(e.key==="ArrowDown") inputState.down=true;
+ if(e.key==="ArrowUp") rotate();
+}
+function keyUpHandler(e){
+ if(e.key==="ArrowLeft") inputState.left=false;
+ if(e.key==="ArrowRight") inputState.right=false;
+ if(e.key==="ArrowDown") inputState.down=false;
+}
+document.addEventListener("keydown",keyDownHandler);
+document.addEventListener("keyup",keyUpHandler);
 
-leftBtn.onmousedown=()=>startHold("l");
-rightBtn.onmousedown=()=>startHold("r");
-downBtn.onmousedown=()=>startHold("d");
-rotBtn.onclick=rotate;
-document.onmouseup=stopHold;
+// ==================== 按钮点击 ====================
+document.getElementById("leftBtn").onmousedown=()=>inputState.left=true;
+document.getElementById("rightBtn").onmousedown=()=>inputState.right=true;
+document.getElementById("downBtn").onmousedown=()=>inputState.down=true;
+document.getElementById("rotBtn").onclick=rotate;
+document.addEventListener("mouseup",()=>{inputState.left=false;inputState.right=false;inputState.down=false;});
 
-// ==================== 触屏手势 ====================
+// ==================== 触屏滑动 ====================
 let startX=0,startY=0;
 canvas.addEventListener("touchstart",e=>{const t=e.touches[0];startX=t.clientX;startY=t.clientY;});
 canvas.addEventListener("touchmove",e=>{
  e.preventDefault();
  const t=e.touches[0];
- const dx=t.clientX-startX,dy=t.clientY-startY;
+ let dx=t.clientX-startX,dy=t.clientY-startY;
  if(Math.abs(dx)>BLOCK){dx>0?move(1):move(-1);startX=t.clientX;}
  if(dy>BLOCK){softDrop();startY=t.clientY;}
 });
 canvas.addEventListener("touchend",e=>{});
+
+// ==================== 排行榜 ====================
+function updateRank(){document.getElementById("rank").innerText="分数:"+score+"  连击:"+combo+(tSpin?"  T-Spin":"");}
 
 requestAnimationFrame(loop);
 </script>
