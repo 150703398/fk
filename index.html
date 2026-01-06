@@ -3,21 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>职业竞技级俄罗斯方块</title>
+<title>职业竞技俄罗斯方块</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;font-family:sans-serif;background:#222;color:#fff;display:flex;flex-direction:column;user-select:none;touch-action:none;}
-#main{flex:1;display:flex;overflow:hidden;}
+html,body{height:100%;width:100%;font-family:sans-serif;background:#222;color:#fff;user-select:none;touch-action:none;overflow:hidden;}
+#main{display:flex;height:100%;width:100%;}
 #left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px;}
-#right{width:70%;display:flex;justify-content:center;align-items:center;}
-.panel{background:#333;border-radius:10px;padding:8px;}
+.panel{background:#333;border-radius:10px;padding:8px;flex-shrink:0;}
 h3{margin:4px 0;font-size:14px;text-align:center;}
-#gameWrap{width:100%;max-width:420px;aspect-ratio:10/20;}
-canvas{display:block;width:100%;height:auto;background:#000;border-radius:10px;}
-#controls{display:flex;width:100%;margin-top:4px;}
+#gameWrap{width:100%;height:100%;display:flex;justify-content:center;align-items:center;}
+canvas{background:#000;border-radius:10px;display:block;width:100%;height:auto;}
+#level,button{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;font-size:14px;}
+#controls{position:absolute;bottom:0;width:100%;display:flex;justify-content:space-around;padding:4px;background:rgba(0,0,0,0.2);}
 .ctrl{flex:1;margin:2px;padding:14px;font-size:18px;border-radius:10px;background:#555;color:#fff;text-align:center;}
 .ctrl:active{background:#888;}
-button,select{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;font-size:14px;}
 </style>
 </head>
 <body>
@@ -41,6 +40,7 @@ button,select{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;
     </div>
   </div>
 </div>
+
 <div id="controls">
   <div class="ctrl" id="leftBtn">◀</div>
   <div class="ctrl" id="downBtn">▼</div>
@@ -175,7 +175,7 @@ function drawGhost(){let y=cur.y;while(canMove(cur.x,y+1,cur.shape))y++;ctx.glob
 function drawNext(){nctx.clearRect(0,0,80,80);next.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=COLORS[next.k];nctx.fillRect(x*20,y*20,20,20);}}));}
 
 // ==================== 移动 ====================
-function move(dx){if(canMove(cur.x+dx,cur.y,cur.shape)){cur.x+=dx;lockTimer=0;dx<0?(DAS_L=ARR_L=0):(DAS_R=ARR_R=0);}}
+function move(dx){if(canMove(cur.x+dx,cur.y,cur.shape)){cur.x+=dx;lockTimer=0;}}
 
 // ==================== 软下落 ====================
 function softDrop(){if(canMove(cur.x,cur.y+1,cur.shape)){cur.y++;score++;}}
@@ -199,16 +199,7 @@ document.addEventListener("keyup",e=>{
  if(e.key==="ArrowUp") inputState.up=false;
 });
 
-// ==================== 屏幕按钮 ====================
-["leftBtn","rightBtn","downBtn","upBtn"].forEach(id=>{
- let dir=id==="leftBtn"? "left": id==="rightBtn"? "right": id==="downBtn"?"down":"up";
- const el=document.getElementById(id);
- el.addEventListener("pointerdown",e=>{e.preventDefault();inputState[dir]=true;},{passive:false});
- el.addEventListener("pointerup",e=>{inputState[dir]=false;},{passive:false});
- el.addEventListener("pointerleave",e=>{inputState[dir]=false;},{passive:false});
-});
-
-// ==================== 触屏滑动 ====================
+// ==================== Canvas 内虚拟按键 + 滑动 ====================
 let startX=0,startY=0;
 canvas.addEventListener("touchstart",e=>{const t=e.touches[0];startX=t.clientX;startY=t.clientY;},{passive:false});
 canvas.addEventListener("touchmove",e=>{
