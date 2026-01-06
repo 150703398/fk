@@ -2,175 +2,264 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>竞技版俄罗斯方块</title>
 <style>
-html,body{
-  margin:0;padding:0;
-  width:100%;height:100%;
-  background:#111;color:#fff;
-  font-family:Arial,sans-serif;
-}
-body{display:flex;flex-direction:column;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1b1b1b;color:#fff;font-family:sans-serif}
+body{display:flex;flex-direction:column}
 
-#gameContainer{
-  flex:1;
-  display:flex;
-  overflow:hidden;
-}
+#main{flex:1;display:flex;overflow:hidden}
+#left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px}
+#right{width:70%;display:flex;justify-content:center;align-items:center}
 
-#leftControlsWrapper{
-  width:30%;
-  display:flex;
-  flex-direction:column;
-  padding:6px;
-  box-sizing:border-box;
+.panel{background:#2a2a2a;border-radius:10px;padding:8px}
+h3{margin:4px 0;font-size:14px;text-align:center}
+
+#gameWrap{width:100%;aspect-ratio:10/20;max-height:100%}
+canvas{width:100%;height:100%;background:#000;border-radius:10px}
+
+button,select{
+  width:100%;padding:6px;margin:3px 0;
+  border-radius:8px;border:none;font-size:14px
 }
 
-#leaderboardWrapper{
-  flex:1;
-  background:#222;
-  border-radius:6px;
-  padding:6px;
-  overflow:auto;
+#controls{
+  display:flex;width:100%;
 }
-
-#leaderboardWrapper ol{
-  margin:6px 0;
-  padding-left:16px;
-  font-size:14px;
-}
-
-#nextCanvasWrapper{
-  height:120px;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  margin:6px 0;
-}
-
-#nextCanvas{
-  width:80px;height:80px;
-  background:#000;
-  border:2px solid #ffb347;
-  border-radius:6px;
-}
-
-#leftControls select,
-#leftControls button{
-  margin-bottom:6px;
-  padding:6px;
-  font-size:14px;
-  background:#ffb347;
-  color:#000;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-}
-
-#canvasWrapper{
-  width:70%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-
-#gameCanvas{
-  background:#000;
-  border:3px solid #ffb347;
+.ctrl{
+  flex:1;margin:2px;
+  padding:14px;font-size:18px;
   border-radius:10px;
-  touch-action:none;
-}
-
-#touchControls{
-  display:flex;
-  width:100%;
-  background:#222;
-}
-
-#touchControls button{
-  flex:1;
-  height:56px;
-  margin:4px;
-  font-size:20px;
-  background:#ffb347;
-  border:none;
-  border-radius:8px;
 }
 </style>
 </head>
-
 <body>
 
-<div id="gameContainer">
-  <div id="leftControlsWrapper">
-    <div id="leaderboardWrapper">
-      <strong>排行榜</strong>
-      <ol id="leaderboard"></ol>
+<div id="main">
+  <div id="left">
+    <div class="panel">
+      <h3>排行榜</h3>
+      <div id="rank"></div>
     </div>
 
-    <div id="nextCanvasWrapper">
-      <canvas id="nextCanvas" width="80" height="80"></canvas>
+    <div class="panel">
+      <h3>下一个</h3>
+      <canvas id="next" width="80" height="80"></canvas>
     </div>
 
-    <div id="leftControls">
-      <select id="difficulty">
-        <option value="600">简单</option>
-        <option value="350" selected>普通</option>
-        <option value="180">困难</option>
+    <div class="panel">
+      <select id="level">
+        <option value="800">简单</option>
+        <option value="500" selected>普通</option>
+        <option value="300">困难</option>
       </select>
-      <button id="startBtn">开始</button>
-      <button id="pauseBtn">暂停</button>
+      <button id="start">开始</button>
+      <button id="pause">暂停</button>
     </div>
   </div>
 
-  <div id="canvasWrapper">
-    <canvas id="gameCanvas"></canvas>
+  <div id="right">
+    <div id="gameWrap">
+      <canvas id="game" width="300" height="600"></canvas>
+    </div>
   </div>
 </div>
 
-<div id="touchControls">
-  <button id="leftBtn">⬅</button>
-  <button id="downBtn">⬇</button>
-  <button id="rotateBtn">⟳</button>
-  <button id="rightBtn">➡</button>
+<div id="controls">
+  <button class="ctrl" id="leftBtn">◀</button>
+  <button class="ctrl" id="downBtn">▼</button>
+  <button class="ctrl" id="rotBtn">⟳</button>
+  <button class="ctrl" id="rightBtn">▶</button>
 </div>
 
 <script>
-/* ====== 基础配置 ====== */
-const COLS=10, ROWS=20;
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-const nextCanvas=document.getElementById('nextCanvas');
-const nextCtx=nextCanvas.getContext('2d');
+/* =================== 基础参数 =================== */
+const COLS=10,ROWS=20,BLOCK=30;
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const nextC=document.getElementById("next"),nctx=nextC.getContext("2d");
 
-let BLOCK=24;
-let board=[], current, nextPiece;
-let timer=null, speed=350, paused=false;
-let score=0, combo=0;
-let lockTimer=null, lockDelay=500;
+let board=[],state="idle",score=0,combo=0;
+let cur,next,bag=[];
+let dropInterval=500,dropTimer=0;
+let lockTimer=0,LOCK_DELAY=500;
+let lastTime=0;
 
-/* ====== 尺寸：严格锁定比例 ====== */
-function resizeCanvas(){
-  const wrap=document.getElementById('canvasWrapper');
-  const maxW=wrap.clientWidth;
-  const maxH=wrap.clientHeight;
-  const ratio=COLS/ROWS;
+/* =================== 方块 =================== */
+const SHAPES={
+ I:[[1,1,1,1]],
+ O:[[1,1],[1,1]],
+ T:[[0,1,0],[1,1,1]],
+ S:[[0,1,1],[1,1,0]],
+ Z:[[1,1,0],[0,1,1]],
+ J:[[1,0,0],[1,1,1]],
+ L:[[0,0,1],[1,1,1]]
+};
 
-  let w=maxW, h=w/ratio;
-  if(h>maxH){ h=maxH; w=h*ratio; }
+const COLORS={
+ I:"#4df",O:"#fd4",T:"#d5f",S:"#4f4",Z:"#f44",J:"#44f",L:"#fa4"
+};
 
-  BLOCK=Math.floor(w/COLS);
-  canvas.width=BLOCK*COLS;
-  canvas.height=BLOCK*ROWS;
-  draw();
+function newBag(){
+ bag=Object.keys(SHAPES).sort(()=>Math.random()-0.5);
 }
-window.addEventListener('resize',resizeCanvas);
+function nextPiece(){
+ if(bag.length===0)newBag();
+ const k=bag.pop();
+ return {k,shape:SHAPES[k],x:3,y:0};
+}
 
-/* ====== 其余逻辑（生成、碰撞、DAS、Lock Delay、计分） ====== */
-/* 为了避免重复刷你屏幕，这里逻辑与你上一版完全一致，只改了 resizeCanvas */
+/* =================== 初始化 =================== */
+function reset(){
+ board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+ score=0;combo=0;
+ cur=nextPiece();
+ next=nextPiece();
+ state="playing";
+}
 
-resizeCanvas();
+/* =================== 碰撞 =================== */
+function canMove(x,y,shape){
+ for(let r=0;r<shape.length;r++)
+  for(let c=0;c<shape[r].length;c++)
+   if(shape[r][c]){
+     let nx=x+c,ny=y+r;
+     if(nx<0||nx>=COLS||ny>=ROWS) return false;
+     if(ny>=0 && board[ny][nx]) return false;
+   }
+ return true;
+}
+
+/* =================== 主循环 =================== */
+function loop(t){
+ if(state!=="playing"){lastTime=t;requestAnimationFrame(loop);return;}
+ const dt=t-lastTime;lastTime=t;
+ dropTimer+=dt;
+
+ if(dropTimer>dropInterval){
+  if(canMove(cur.x,cur.y+1,cur.shape)){
+    cur.y++;
+  }else{
+    lockTimer+=dt;
+    if(lockTimer>LOCK_DELAY) lock();
+  }
+  dropTimer=0;
+ }
+
+ draw();
+ requestAnimationFrame(loop);
+}
+
+/* =================== 固定 =================== */
+function lock(){
+ cur.shape.forEach((r,i)=>r.forEach((v,j)=>{
+  if(v) board[cur.y+i][cur.x+j]=cur.k;
+ }));
+ clearLines();
+ cur=next;
+ next=nextPiece();
+ lockTimer=0;
+ if(!canMove(cur.x,cur.y,cur.shape)) state="gameover";
+}
+
+/* =================== 消行 =================== */
+function clearLines(){
+ let lines=0;
+ board=board.filter(r=>{
+  if(r.every(v=>v)){lines++;return false;}
+  return true;
+ });
+ while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
+ if(lines){
+  combo++;
+  score+=lines*100*combo;
+ }else combo=0;
+}
+
+/* =================== 绘制 =================== */
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ board.forEach((r,y)=>r.forEach((v,x)=>{
+  if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);}
+ }));
+ drawGhost();
+ drawPiece(cur);
+ drawNext();
+}
+
+function drawPiece(p){
+ ctx.fillStyle=COLORS[p.k];
+ p.shape.forEach((r,y)=>r.forEach((v,x)=>{
+  if(v) ctx.fillRect((p.x+x)*BLOCK,(p.y+y)*BLOCK,BLOCK,BLOCK);
+ }));
+}
+
+function drawGhost(){
+ let y=cur.y;
+ while(canMove(cur.x,y+1,cur.shape)) y++;
+ ctx.globalAlpha=0.3;
+ drawPiece({...cur,y});
+ ctx.globalAlpha=1;
+}
+
+function drawNext(){
+ nctx.clearRect(0,0,80,80);
+ next.shape.forEach((r,y)=>r.forEach((v,x)=>{
+  if(v){
+    nctx.fillStyle=COLORS[next.k];
+    nctx.fillRect(x*20,y*20,20,20);
+  }
+ }));
+}
+
+/* =================== 输入 =================== */
+function move(dx){
+ if(canMove(cur.x+dx,cur.y,cur.shape)){
+  cur.x+=dx;lockTimer=0;
+ }
+}
+function rotate(){
+ const r=cur.shape[0].map((_,i)=>cur.shape.map(row=>row[i]).reverse());
+ if(canMove(cur.x,cur.y,r)){cur.shape=r;lockTimer=0;}
+}
+function softDrop(){
+ if(canMove(cur.x,cur.y+1,cur.shape)){
+  cur.y++;score++;
+ }
+}
+
+/* =================== 事件 =================== */
+document.getElementById("start").onclick=()=>{
+ dropInterval=+level.value;
+ reset();
+};
+document.getElementById("pause").onclick=()=>{
+ if(state==="playing")state="paused";
+ else if(state==="paused")state="playing";
+};
+
+leftBtn.onmousedown=()=>hold("l");
+rightBtn.onmousedown=()=>hold("r");
+downBtn.onmousedown=()=>hold("d");
+rotBtn.onclick=rotate;
+
+let holdKey=null,holdTimer=null;
+function hold(k){
+ holdKey=k;
+ doHold();
+ holdTimer=setInterval(doHold,60);
+}
+function doHold(){
+ if(holdKey==="l")move(-1);
+ if(holdKey==="r")move(1);
+ if(holdKey==="d")softDrop();
+}
+document.onmouseup=()=>{
+ clearInterval(holdTimer);
+ holdKey=null;
+};
+
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
