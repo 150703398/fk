@@ -11,11 +11,11 @@ html,body{height:100%;width:100%;font-family:sans-serif;background:#ffebcc;color
 #left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px;}
 .panel{background:#ffe4a3;border-radius:12px;padding:8px;flex-shrink:0;box-shadow:0 0 8px rgba(0,0,0,0.2);}
 h3{margin:4px 0;font-size:14px;text-align:center;color:#333;}
-#gameWrap{width:100%;height:100%;display:flex;justify-content:center;align-items:center;}
+#gameWrap{width:70%;height:100%;display:flex;justify-content:center;align-items:center;}
 canvas{background:#fff8e7;border-radius:12px;display:block;width:100%;height:auto;}
 #level,button{width:100%;padding:6px;margin:3px 0;border-radius:8px;border:none;font-size:14px;background:#ffd966;color:#333;cursor:pointer;}
 #level option{background:#fff;}
-#instructions{position:absolute;bottom:0;width:100%;background:rgba(255,235,204,0.9);padding:6px;text-align:center;font-size:12px;line-height:1.4;color:#333;box-shadow:0 -2px 6px rgba(0,0,0,0.2);}
+#instructions{margin-top:8px;font-size:12px;text-align:center;line-height:1.4;color:#333;}
 </style>
 </head>
 <body>
@@ -31,16 +31,14 @@ canvas{background:#fff8e7;border-radius:12px;display:block;width:100%;height:aut
       </select>
       <button id="start">开始</button>
       <button id="pause">暂停</button>
-    </div>
-  </div>
-  <div id="right">
-    <div id="gameWrap">
-      <canvas id="game" width="300" height="600"></canvas>
-    </div>
-  </div>
-</div>
-<div id="instructions">
+      <div id="instructions">
 操作说明：PC键盘：← → 移动，↓软下落，上旋转 | 手机滑动：左右滑动→移动（支持连续），上滑→旋转，下滑→软下落
+      </div>
+    </div>
+  </div>
+  <div id="gameWrap">
+    <canvas id="game" width="300" height="600"></canvas>
+  </div>
 </div>
 
 <script>
@@ -125,12 +123,9 @@ function loop(t){
  let dt=t-lastTime;lastTime=t;
  dropTimer+=dt;
 
- // 左右移动 DAS/ARR
  if(inputState.left){ DAS_L+=dt; if(DAS_L>=DAS){ARR_L+=dt; while(ARR_L>=ARR){move(-1);ARR_L-=ARR;}} }else{DAS_L=0;ARR_L=0;}
  if(inputState.right){ DAS_R+=dt; if(DAS_R>=DAS){ARR_R+=dt; while(ARR_R>=ARR){move(1);ARR_R-=ARR;}} }else{DAS_R=0;ARR_R=0;}
- // 下落
  if(inputState.down){softDrop();}
- // 向上旋转
  if(inputState.up){rotate();inputState.up=false;}
 
  if(dropTimer>=dropInterval){
@@ -212,39 +207,32 @@ document.addEventListener("keyup",e=>{
  if(e.key==="ArrowUp") inputState.up=false;
 });
 
-// ==================== Canvas 内滑动 DAS/ARR ====================
-let startX=0,startY=0,holdDir=null;
-let holdTimer=0,holdARRTimer=0;
+// ==================== 手机滑动 DAS/ARR ====================
+let startX=0,startY=0,holdDir=null,holdTimer=0,holdARRTimer=0;
 canvas.addEventListener("touchstart",e=>{
  const t=e.touches[0]; startX=t.clientX; startY=t.clientY;
  holdDir=null; holdTimer=0; holdARRTimer=0;
 },{passive:false});
-
 canvas.addEventListener("touchmove",e=>{
  e.preventDefault();
  const t=e.touches[0];
  let dx=t.clientX-startX, dy=t.clientY-startY;
 
- // 左右滑动 DAS/ARR
  if(Math.abs(dx)>BLOCK){
    holdDir = dx>0 ? "right":"left";
-   startX = t.clientX;
-   holdTimer = DAS; holdARRTimer = ARR; // 立即触发一次
+   startX=t.clientX;
+   holdTimer=DAS; holdARRTimer=ARR;
    if(holdDir==="left") move(-1); else move(1);
  }
 
- // 上滑旋转
  if(dy<-BLOCK){rotate(); startY=t.clientY;}
- // 下滑软下落
  if(dy>BLOCK){softDrop(); startY=t.clientY;}
 },{passive:false});
-
 canvas.addEventListener("touchend",e=>{
  holdDir=null; holdTimer=0; holdARRTimer=0;
  inputState.down=false; inputState.up=false;
 },{passive:false});
 
-// 连续移动循环
 function touchLoop(dt){
  if(holdDir){
    holdTimer += dt;
