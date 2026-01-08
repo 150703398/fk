@@ -208,13 +208,12 @@ document.addEventListener("keyup",e=>{
 });
 
 // ==================== 手机滑动移动 ====================
-let touchStartX=0,touchStartY=0,touchHoldDir=null,holdTimer=0,holdARRTimer=0;
-const SWIPE_THRESHOLD=20; // px
-
+let touchStartX=0,touchStartY=0,touchHoldDir=null,holdTimer=0,holdARRTimer=0,touchDxAccum=0;
+const TOUCH_BLOCK=BLOCK;
 canvas.addEventListener("touchstart",e=>{
  const t=e.touches[0];
  touchStartX=t.clientX; touchStartY=t.clientY;
- touchHoldDir=null; holdTimer=0; holdARRTimer=0;
+ touchDxAccum=0; touchHoldDir=null; holdTimer=0; holdARRTimer=0;
 },{passive:false});
 
 canvas.addEventListener("touchmove",e=>{
@@ -223,14 +222,15 @@ canvas.addEventListener("touchmove",e=>{
  const dx=t.clientX-touchStartX;
  const dy=t.clientY-touchStartY;
 
- if(Math.abs(dx)>SWIPE_THRESHOLD){
-   if(dx>0){move(1); touchHoldDir="right";}else{move(-1); touchHoldDir="left";}
-   touchStartX=t.clientX;
-   holdTimer=DAS; holdARRTimer=ARR;
- }
+ // 横向微调
+ touchDxAccum+=dx;
+ while(touchDxAccum>=TOUCH_BLOCK){move(1); touchDxAccum-=TOUCH_BLOCK; touchHoldDir="right"; holdTimer=DAS; holdARRTimer=ARR;}
+ while(touchDxAccum<=-TOUCH_BLOCK){move(-1); touchDxAccum+=TOUCH_BLOCK; touchHoldDir="left"; holdTimer=DAS; holdARRTimer=ARR;}
+ touchStartX=t.clientX;
 
- if(dy<-SWIPE_THRESHOLD){rotate(); touchStartY=t.clientY;}
- if(dy>SWIPE_THRESHOLD){softDrop(); touchStartY=t.clientY;}
+ // 纵向滑动
+ if(dy<-TOUCH_BLOCK){rotate(); touchStartY=t.clientY;}
+ if(dy>TOUCH_BLOCK){softDrop(); touchStartY=t.clientY;}
 },{passive:false});
 
 canvas.addEventListener("touchend",e=>{
