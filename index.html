@@ -9,6 +9,9 @@
 html,body{width:100%;height:100%;background:#ffefc7;font-family:sans-serif;overflow:hidden;user-select:none;touch-action:none}
 #app{display:flex;height:calc(100% - 44px)}
 #left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px}
+#left-top{flex:1;overflow:auto}
+#left-mid{flex:0 0 auto;margin-top:8px}
+#left-bottom{flex:0 0 auto;margin-top:auto}
 #right{width:70%;display:flex;justify-content:center;align-items:center;position:relative}
 .panel{background:#ffe39a;border-radius:14px;padding:8px;box-shadow:0 4px 8px rgba(0,0,0,.15)}
 h3{text-align:center;font-size:14px;margin-bottom:6px}
@@ -21,15 +24,15 @@ button,select{width:100%;padding:6px;margin-top:4px;border:none;border-radius:10
 <body>
 <div id="app">
   <div id="left">
-    <div class="panel">
+    <div id="left-top" class="panel">
       <h3>云端排行榜 Top10</h3>
       <div id="rank">加载中…</div>
     </div>
-    <div class="panel">
+    <div id="left-mid" class="panel">
       <h3>下一个方块</h3>
       <canvas id="next" width="90" height="90"></canvas>
     </div>
-    <div class="panel" style="margin-top:auto;">
+    <div id="left-bottom" class="panel">
       <select id="level">
         <option value="800">简单</option>
         <option value="500" selected>普通</option>
@@ -65,7 +68,6 @@ async function loadRank(){
    let display=[];
    if(r.length){display=r.slice(0,10);} 
    else {
-     // 本地排行榜备份
      const local=JSON.parse(localStorage.getItem("tetris_rank")||"[]");
      display=local.slice(0,10);
    }
@@ -87,7 +89,6 @@ async function submitScore(){
    });
    const data=await res.json();
    console.log("提交结果:",data);
-   // 保存本地备份
    let local=JSON.parse(localStorage.getItem("tetris_rank")||"[]");
    local.push({score,drop});
    localStorage.setItem("tetris_rank",JSON.stringify(local));
