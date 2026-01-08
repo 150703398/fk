@@ -32,7 +32,7 @@ canvas{background:#fff8e7;border-radius:12px;display:block;width:100%;height:aut
       <button id="start">开始</button>
       <button id="pause">暂停</button>
       <div id="instructions">
-操作说明：PC键盘：← → 移动，↓软下落，上旋转 | 手机滑动：左右滑动→移动一格，长按连续移动，上滑→旋转，下滑→软下落
+操作说明：向上：旋转，向左：左移，向右：右移，向下：下移。
       </div>
     </div>
   </div>
@@ -207,49 +207,46 @@ document.addEventListener("keyup",e=>{
  if(e.key==="ArrowUp") inputState.up=false;
 });
 
-// ==================== 手机滑动移动（精确格 + 长按 DAS/ARR） ====================
-let startX=0,startY=0,holdDir=null,holdTimer=0,holdARRTimer=0;
-const SWIPE_THRESHOLD=BLOCK/2;
+// ==================== 手机滑动移动 ====================
+let touchStartX=0,touchStartY=0,touchHoldDir=null,holdTimer=0,holdARRTimer=0;
+const SWIPE_THRESHOLD=20; // px
 
 canvas.addEventListener("touchstart",e=>{
  const t=e.touches[0];
- startX=t.clientX; startY=t.clientY;
- holdDir=null; holdTimer=0; holdARRTimer=0;
+ touchStartX=t.clientX; touchStartY=t.clientY;
+ touchHoldDir=null; holdTimer=0; holdARRTimer=0;
 },{passive:false});
 
 canvas.addEventListener("touchmove",e=>{
  e.preventDefault();
  const t=e.touches[0];
- const dx=t.clientX-startX;
- const dy=t.clientY-startY;
+ const dx=t.clientX-touchStartX;
+ const dy=t.clientY-touchStartY;
 
- // 左右移动格子逻辑
- if(Math.abs(dx)>=SWIPE_THRESHOLD){
-   let moveCells = Math.floor(Math.abs(dx)/SWIPE_THRESHOLD);
-   let dir = dx>0?1:-1;
-   for(let i=0;i<moveCells;i++) move(dir);
-   startX += moveCells*SWIPE_THRESHOLD*dir;
-   holdDir = dir>0?"right":"left";
+ if(Math.abs(dx)>SWIPE_THRESHOLD){
+   if(dx>0){move(1); touchHoldDir="right";}else{move(-1); touchHoldDir="left";}
+   touchStartX=t.clientX;
    holdTimer=DAS; holdARRTimer=ARR;
  }
 
- // 上滑旋转
- if(dy<-SWIPE_THRESHOLD){rotate(); startY=t.clientY;}
- // 下滑软下落
- if(dy>SWIPE_THRESHOLD){softDrop(); startY=t.clientY;}
+ if(dy<-SWIPE_THRESHOLD){rotate(); touchStartY=t.clientY;}
+ if(dy>SWIPE_THRESHOLD){softDrop(); touchStartY=t.clientY;}
 },{passive:false});
 
 canvas.addEventListener("touchend",e=>{
- holdDir=null; holdTimer=0; holdARRTimer=0;
+ touchHoldDir=null; holdTimer=0; holdARRTimer=0;
  inputState.down=false; inputState.up=false;
 },{passive:false});
 
 function touchLoop(dt){
- if(holdDir){
+ if(touchHoldDir){
    holdTimer += dt;
    holdARRTimer += dt;
    if(holdTimer>=DAS){
-     while(holdARRTimer>=ARR){if(holdDir==="left") move(-1); else move(1); holdARRTimer-=ARR;}
+     while(holdARRTimer>=ARR){
+       if(touchHoldDir==="left") move(-1); else move(1);
+       holdARRTimer-=ARR;
+     }
    }
  }
  requestAnimationFrame(touchLoop);
@@ -259,7 +256,7 @@ requestAnimationFrame(touchLoop);
 // ==================== 排行榜 ====================
 function updateRank(){document.getElementById("rank").innerText="分数:"+score+"  连击:"+combo+(tSpin?"  T-Spin":"");}
 
-// ==================== 开始循环 ====================
+// ==================== 循环 ====================
 requestAnimationFrame(function loopStart(t){lastTime=t;loop(t);});
 </script>
 </body>
