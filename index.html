@@ -75,8 +75,10 @@ async function loadRank(){
 async function submit(){
  if(!gameOver) return;
  try{
-   await fetch(API+"/score",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({score,drop})});
-   loadRank();
+   const res=await fetch(API+"/score",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({score,drop})});
+   const data=await res.json();
+   console.log("提交结果:",data);
+   await loadRank();
  }catch(e){console.error("提交失败",e);}
 }
 
@@ -97,9 +99,11 @@ function rotate(){ if(state!=="play"||gameOver) return; const s=cur.shape; const
 function lock(){
  if(gameOver) return;
  cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v && cur.y+y>=0) board[cur.y+y][cur.x+x]=cur.k;}));
+ let lines=board.filter(r=>r.every(v=>v)).length;
+ if(lines>0) score+=lines*100;
  board=board.filter(r=>!r.every(v=>v));
  while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
- score+=100; updateScore();
+ updateScore();
  cur=nextP; nextP=nextPiece();
  if(!can(cur.x,cur.y,cur.shape)){
    gameOver=true; state="over";
