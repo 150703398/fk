@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <title>俄罗斯方块</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;background:#ffefc7;font-family:sans-serif;overflow:hidden;user-select:none;touch-action:none}
-#app{display:flex;height:calc(100% - 44px)}
-#left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px}
-#left-top{flex:1;overflow:auto}
-#left-mid{flex:0 0 auto;margin-top:8px}
-#left-bottom{flex:0 0 auto;margin-top:auto}
-#right{width:70%;display:flex;justify-content:center;align-items:center;position:relative}
-.panel{background:#ffe39a;border-radius:14px;padding:8px;box-shadow:0 4px 8px rgba(0,0,0,.15)}
-h3{text-align:center;font-size:14px;margin-bottom:6px}
-#game{width:100%;height:auto;background:#fff7e6;border-radius:16px}
-#score{position:absolute;top:8px;left:8px;background:rgba(255,255,255,0.7);padding:4px 8px;border-radius:6px;font-size:14px;font-weight:bold;z-index:10}
-#hint{height:44px;line-height:44px;background:#ffe39a;text-align:center;font-size:13px;box-shadow:0 -2px 6px rgba(0,0,0,.2)}
-button,select{width:100%;padding:6px;margin-top:4px;border:none;border-radius:10px;background:#ffd45c;font-size:14px}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:#ffefc7;font-family:sans-serif;overflow:hidden;user-select:none;touch-action:none;}
+#app{display:flex;height:calc(100% - 44px);}
+#left{width:30%;padding:8px;display:flex;flex-direction:column;gap:8px;}
+#left-top{flex:1;overflow:auto;}
+#left-mid{flex:0 0 auto;margin-top:8px;}
+#left-bottom{flex:0 0 auto;margin-top:auto;}
+#right{width:70%;display:flex;justify-content:center;align-items:center;position:relative;}
+.panel{background:#ffe39a;border-radius:14px;padding:8px;box-shadow:0 4px 8px rgba(0,0,0,.15);}
+h3{text-align:center;font-size:14px;margin-bottom:6px;}
+#game{width:100%;height:auto;background:#fff7e6;border-radius:16px;}
+#score{position:absolute;top:8px;left:8px;background:rgba(255,255,255,0.7);padding:4px 8px;border-radius:6px;font-size:14px;font-weight:bold;z-index:10;}
+#hint{height:44px;line-height:44px;background:#ffe39a;text-align:center;font-size:13px;box-shadow:0 -2px 6px rgba(0,0,0,.2);}
+button,select{width:100%;padding:6px;margin-top:4px;border:none;border-radius:10px;background:#ffd45c;font-size:14px;}
 </style>
 </head>
 <body>
@@ -50,7 +50,7 @@ button,select{width:100%;padding:6px;margin-top:4px;border:none;border-radius:10
 <div id="hint">向上：旋转，向左：左移，向右：右移，向下：下移</div>
 
 <script>
-const API="https://fktop.wuyuping7262.workers.dev";
+const API="https://fktop.wuyuping7262.workers.dev/score";
 const COLS=10,ROWS=20,S=30;
 const canvas=game,ctx=canvas.getContext("2d");
 const nctx=next.getContext("2d");
@@ -59,7 +59,7 @@ const rank=document.getElementById("rank");
 const COLORS={I:"#5ddcff",O:"#ffd966",T:"#d36bff",S:"#5cff8a",Z:"#ff6b6b",J:"#5c7cff",L:"#ffa94d"};
 const SHAPES={I:[[1,1,1,1]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1]],S:[[0,1,1],[1,1,0]],Z:[[1,1,0],[0,1,1]],J:[[1,0,0],[1,1,1]],L:[[0,0,1],[1,1,1]]};
 
-let board,cur,nextP,bag=[],state="idle",gameOver=false;
+let board=[],cur=null,nextP=null,bag=[],state="idle",gameOver=false;
 let score=0,drop=500,timer=0,last=0;
 
 /* 排行榜 */
@@ -109,10 +109,10 @@ function reset(){
  updateScore();
 }
 
-function rotate(){ if(state!=="play"||gameOver) return; const s=cur.shape; const r=s[0].map((_,i)=>s.map(row=>row[i]).reverse()); if(can(cur.x,cur.y,r))cur.shape=r; }
+function rotate(){ if(state!=="play"||gameOver||!cur) return; const s=cur.shape; const r=s[0].map((_,i)=>s.map(row=>row[i]).reverse()); if(can(cur.x,cur.y,r))cur.shape=r; }
 
 function lock(){
- if(gameOver) return;
+ if(!cur || gameOver) return;
  cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v && cur.y+y>=0) board[cur.y+y][cur.x+x]=cur.k;}));
  let lines=board.filter(r=>r.every(v=>v)).length;
  if(lines>0) score+=lines*100;
@@ -122,6 +122,7 @@ function lock(){
  cur=nextP; nextP=nextPiece();
  if(!can(cur.x,cur.y,cur.shape)){
    gameOver=true; state="over";
+   cur=null; // 防止继续下落
    alert(`游戏结束！你的分数: ${score}`);
    submitScore();
  }
@@ -131,22 +132,24 @@ function updateScore(){scoreDisplay.textContent="分数: "+score;}
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
  board.forEach((r,y)=>r.forEach((v,x)=>{if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(x*S,y*S,S,S);ctx.strokeStyle="#0004";ctx.strokeRect(x*S,y*S,S,S);}}));
- if(!gameOver){ctx.fillStyle=COLORS[cur.k]; cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((cur.x+x)*S,(cur.y+y)*S,S,S);}));}
+ if(cur){ctx.fillStyle=COLORS[cur.k]; cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((cur.x+x)*S,(cur.y+y)*S,S,S);}));}
  nctx.clearRect(0,0,90,90);
- let sh=nextP.shape,sc=Math.min(90/sh[0].length,90/sh.length),ox=(90-sh[0].length*sc)/2,oy=(90-sh.length*sc)/2;
- sh.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=COLORS[nextP.k];nctx.fillRect(ox+x*sc,oy+y*sc,sc,sc);}}));
+ if(nextP){
+   let sh=nextP.shape,sc=Math.min(90/sh[0].length,90/sh.length),ox=(90-sh[0].length*sc)/2,oy=(90-sh.length*sc)/2;
+   sh.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=COLORS[nextP.k];nctx.fillRect(ox+x*sc,oy+y*sc,sc,sc);}}));
+ }
 }
 
 function loop(t){
  if(state!=="play"){last=t;requestAnimationFrame(loop);return;}
  let d=t-last;last=t;timer+=d;
- if(timer>drop){ if(can(cur.x,cur.y+1,cur.shape)) cur.y++; else lock(); timer=0; }
+ if(timer>drop){ if(cur && can(cur.x,cur.y+1,cur.shape)) cur.y++; else lock(); timer=0; }
  draw(); requestAnimationFrame(loop);
 }
 
 /* 输入 */
 document.onkeydown=e=>{
- if(gameOver || state!=="play") return;
+ if(gameOver || state!=="play" || !cur) return;
  if(e.key==="ArrowLeft"&&can(cur.x-1,cur.y,cur.shape))cur.x--;
  if(e.key==="ArrowRight"&&can(cur.x+1,cur.y,cur.shape))cur.x++;
  if(e.key==="ArrowDown"&&can(cur.x,cur.y+1,cur.shape))cur.y++;
@@ -158,7 +161,7 @@ let sx,sy;
 canvas.ontouchstart=e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;};
 canvas.ontouchmove=e=>{
  e.preventDefault();
- if(gameOver || state!=="play") return;
+ if(gameOver || state!=="play" || !cur) return;
  let t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
  if(dx>30&&can(cur.x+1,cur.y,cur.shape)){cur.x++;sx=t.clientX}
  if(dx<-30&&can(cur.x-1,cur.y,cur.shape)){cur.x--;sx=t.clientX}
