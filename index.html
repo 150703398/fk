@@ -123,6 +123,7 @@ async function loadRank(){
  }
 }
 async function submit(){
+ if(state!=="over") return;
  try{
    await fetch(API+"/score",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({score,drop})});
    loadRank();
@@ -142,21 +143,35 @@ function reset(){
 }
 
 function rotate(){
+ if(state!=="play") return;
  const s=cur.shape;
  const r=s[0].map((_,i)=>s.map(row=>row[i]).reverse());
  if(can(cur.x,cur.y,r))cur.shape=r;
 }
 
 function lock(){
+ if(state==="over") return;
+
  cur.shape.forEach((r,y)=>r.forEach((v,x)=>{
-  if(v&&cur.y+y>=0)board[cur.y+y][cur.x+x]=cur.k;
+  if(v && cur.y+y>=0) board[cur.y+y][cur.x+x]=cur.k;
  }));
+
+ // 消行
  board=board.filter(r=>!r.every(v=>v));
- while(board.length<ROWS)board.unshift(Array(COLS).fill(0));
+ while(board.length<ROWS) board.unshift(Array(COLS).fill(0));
+
  score+=100;
  updateScore();
- cur=nextP; nextP=nextPiece();
- if(!can(cur.x,cur.y,cur.shape)){state="over";submit();}
+
+ // 下一个方块
+ cur = nextP;
+ nextP = nextPiece();
+
+ if(!can(cur.x, cur.y, cur.shape)){
+   state="over";
+   alert("游戏结束！");
+   submit();
+ }
 }
 
 function updateScore(){
@@ -168,8 +183,10 @@ function draw(){
  board.forEach((r,y)=>r.forEach((v,x)=>{
   if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(x*S,y*S,S,S);ctx.strokeStyle="#0004";ctx.strokeRect(x*S,y*S,S,S);}
  }));
- ctx.fillStyle=COLORS[cur.k];
- cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((cur.x+x)*S,(cur.y+y)*S,S,S);}));
+ if(state!=="over"){
+   ctx.fillStyle=COLORS[cur.k];
+   cur.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v)ctx.fillRect((cur.x+x)*S,(cur.y+y)*S,S,S);}));
+ }
  nctx.clearRect(0,0,90,90);
  let sh=nextP.shape;
  let sc=Math.min(90/sh[0].length,90/sh.length);
@@ -178,18 +195,20 @@ function draw(){
 }
 
 function loop(t){
- if(state!=="play"){last=t;requestAnimationFrame(loop);return;}
- let d=t-last;last=t;timer+=d;
+ if(state!=="play"){last=t; requestAnimationFrame(loop); return;}
+ let d=t-last; last=t; timer+=d;
  if(timer>drop){
-  if(can(cur.x,cur.y+1,cur.shape))cur.y++;
-  else lock();
-  timer=0;
+   if(can(cur.x, cur.y+1, cur.shape)) cur.y++;
+   else lock();
+   timer=0;
  }
- draw();requestAnimationFrame(loop);
+ draw();
+ requestAnimationFrame(loop);
 }
 
 /* ====== 输入 ====== */
 document.onkeydown=e=>{
+ if(state!=="play") return;
  if(e.key==="ArrowLeft"&&can(cur.x-1,cur.y,cur.shape))cur.x--;
  if(e.key==="ArrowRight"&&can(cur.x+1,cur.y,cur.shape))cur.x++;
  if(e.key==="ArrowDown"&&can(cur.x,cur.y+1,cur.shape))cur.y++;
@@ -200,6 +219,7 @@ let sx,sy;
 canvas.ontouchstart=e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY};
 canvas.ontouchmove=e=>{
  e.preventDefault();
+ if(state!=="play") return;
  let t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
  if(dx>30&&can(cur.x+1,cur.y,cur.shape)){cur.x++;sx=t.clientX}
  if(dx<-30&&can(cur.x-1,cur.y,cur.shape)){cur.x--;sx=t.clientX}
@@ -209,7 +229,7 @@ canvas.ontouchmove=e=>{
 
 /* ====== 按钮 ====== */
 start.onclick=()=>{drop=+level.value;reset()};
-pause.onclick=()=>state=state==="play"?"pause":"play";
+pause.onclick=()=>{state=state==="play"?"pause":"play";};
 
 loadRank();
 requestAnimationFrame(loop);
